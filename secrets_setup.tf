@@ -37,30 +37,53 @@ resource "kubernetes_secret" "kong-enterprise-superuser-password" {
   }
 }
 
-resource "kubernetes_secret" "kong-session-conf" {
+resource "kubernetes_secret" "kong-admin-gui-session-conf" {
   metadata {
-    name      = var.session_conf_secret_name
+    name      = var.kong_admin_gui_session_conf_secret_name
     namespace = kubernetes_namespace.kong["kong-hybrid-cp"].metadata[0].name
   }
 
   type = "Opaque"
   data = {
-    (var.gui_config_secret_key)    = file("${path.module}/.session_conf/admin_gui_session_conf")
-    (var.portal_config_secret_key) = file("${path.module}/.session_conf/portal_session_conf")
+    (var.kong_admin_gui_session_conf_secret_name) = file(var.kong_admin_gui_session_conf_file)
   }
 }
 
-#resource "kubernetes_secret" "kong-auth-conf" {
-#  metadata {
-#    name      = "admin-gui-auth-conf"
-#    namespace = kubernetes_namespace.kong["kong-hybrid-cp"].metadata[0].name
-#  }
-#
-#  type = "Opaque"
-#  data = {
-#    "admin-gui-auth-conf" = file("${path.module}/.auth_conf/admin_gui_auth.conf")
-#  }
-#}
+resource "kubernetes_secret" "kong-portal-session-conf" {
+  metadata {
+    name      = var.kong_portal_session_conf_secret_name
+    namespace = kubernetes_namespace.kong["kong-hybrid-cp"].metadata[0].name
+  }
+
+  type = "Opaque"
+  data = {
+    (var.kong_portal_session_conf_secret_name) = file(var.kong_portal_session_conf_file)
+  }
+}
+
+resource "kubernetes_secret" "kong-admin-gui-auth-conf" {
+  metadata {
+    name      = var.kong_admin_gui_auth_conf_secret_name
+    namespace = kubernetes_namespace.kong["kong-hybrid-cp"].metadata[0].name
+  }
+
+  type = "Opaque"
+  data = {
+    (var.kong_admin_gui_auth_conf_secret_name) = try(file(var.kong_admin_gui_auth_conf_file), "{}")
+  }
+}
+
+resource "kubernetes_secret" "kong-portal-auth-conf" {
+  metadata {
+    name      = var.kong_portal_auth_conf_secret_name
+    namespace = kubernetes_namespace.kong["kong-hybrid-cp"].metadata[0].name
+  }
+
+  type = "Opaque"
+  data = {
+    (var.kong_portal_auth_conf_secret_name) = file(var.kong_portal_auth_conf_file)
+  }
+}
 
 resource "kubernetes_secret" "kong-database-password" {
   metadata {
@@ -71,5 +94,17 @@ resource "kubernetes_secret" "kong-database-password" {
   type = "Opaque"
   data = {
     (var.kong_database_secret_name) = var.kong_database_password
+  }
+}
+
+resource "kubernetes_secret" "datadog-api-key" {
+  metadata {
+    name      = var.datadog_api_key_secret_name
+    namespace = kubernetes_namespace.kong["kong-hybrid-cp"].metadata[0].name
+  }
+
+  type = "Opaque"
+  data = {
+    (var.datadog_api_key_secret_name) = file(var.datadog_api_key_path)
   }
 }

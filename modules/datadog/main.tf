@@ -8,8 +8,8 @@ resource "helm_release" "datadog" {
   values    = [file("${path.module}/../../helm_values/datadog.yml")]
 
   set {
-    name  = "datadog.apiKey"
-    value = var.api_key
+    name  = "datadog.apiKeyExistingSecret"
+    value = var.api_key_secret
     type  = "auto"
   }
 

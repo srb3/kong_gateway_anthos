@@ -1,16 +1,3 @@
-###########################################################
-# Some prerequs for running the example:
-#  a kubernetes cluster (minikube/eks) and a
-#  ~/.kube/config file that enables connectivity to it
-#
-# Other Files In this Example:
-#
-# secrets_setup.tf: creates secrets in kubernetes for the kong
-#                   + postgres deployments
-#
-# variables.tf:      variables for the kong deployment
-#                   can be overriden if needed
-
 provider "kubernetes" {
   config_path = var.kube_config_file
 }
@@ -31,10 +18,9 @@ resource "kubernetes_namespace" "kong" {
 }
 
 module "datadog" {
-  count     = var.datadog_api_key != null ? 1 : 0
-  source    = "./modules/datadog"
-  namespace = "default"
-  api_key   = var.datadog_api_key
+  source         = "./modules/datadog"
+  namespace      = local.cp_ns
+  api_key_secret = var.datadog_api_key_secret_name
 }
 
 module "redis" {
@@ -143,19 +129,24 @@ locals {
       key         = var.kong_license_secret_name
     },
     {
-      name        = "KONG_ADMIN_GUI_SESSION_CONF"
-      secret_name = var.session_conf_secret_name
-      key         = var.gui_config_secret_key
+      name        = "KONG_ADMIN_GUI_AUTH_CONF"
+      secret_name = var.kong_admin_gui_auth_conf_secret_name
+      key         = var.kong_admin_gui_auth_conf_secret_name
     },
     {
-      name        = "KONG_ADMIN_GUI_AUTH_CONF"
-      secret_name = "admin-gui-auth-conf"
-      key         = "admin-gui-auth-conf"
+      name        = "KONG_ADMIN_GUI_SESSION_CONF"
+      secret_name = var.kong_admin_gui_session_conf_secret_name
+      key         = var.kong_admin_gui_session_conf_secret_name
     },
     {
       name        = "KONG_PORTAL_SESSION_CONF"
-      secret_name = var.session_conf_secret_name
-      key         = var.portal_config_secret_key
+      secret_name = var.kong_portal_session_conf_secret_name
+      key         = var.kong_portal_session_conf_secret_name
+    },
+    {
+      name        = "KONG_PORTAL_AUTH_CONF"
+      secret_name = var.kong_portal_auth_conf_secret_name
+      key         = var.kong_portal_auth_conf_secret_name
     },
     {
       name        = "KONG_PG_PASSWORD"
@@ -182,7 +173,7 @@ locals {
 # Use the Kong module to create a cp
 module "kong-cp" {
   source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.6"
+  version                = "0.0.9"
   deployment_name        = local.kong_cp_deployment_name
   namespace              = local.cp_ns
   deployment_replicas    = var.control_plane_replicas
@@ -206,7 +197,7 @@ module "kong-cp" {
 # Use the Kong module to create a dp
 module "kong-dp" {
   source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.6"
+  version                = "0.0.9"
   deployment_name        = local.kong_dp_deployment_name
   namespace              = local.dp_ns
   deployment_replicas    = var.data_plane_replicas

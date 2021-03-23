@@ -283,31 +283,68 @@ variable "kong_license_secret_name" {
   default     = "kong-enterprise-license"
 }
 
-variable "session_conf_secret_name" {
-  description = "A string used as the name of the session conf kubernetes secret"
-  type        = string
-  default     = "kong-session-conf"
-}
-
-variable "gui_config_secret_key" {
-  description = "A string used as the name of the gui conf kubernetes secret"
-  type        = string
-  default     = "admin_gui_session_conf"
-}
-
-variable "portal_config_secret_key" {
-  description = "A string used as the name of the portal conf kubernetes secret"
-  type        = string
-  default     = "portal_session_conf"
-}
-
 variable "kong_superuser_secret_name" {
-  description = "A string used as the name of the image pull kubernetes secret"
+  description = "A string used as the name for the kong superuser password"
+  type        = string
   default     = "kong-enterprise-superuser-password"
 }
 
-variable "datadog_api_key" {
-  description = "A string that represents you datadog api access key"
+variable "kong_admin_gui_session_conf_secret_name" {
+  description = "A string used as the name of the admin gui session conf kubernetes secret"
   type        = string
-  default     = null
+  default     = "kong-admin-gui-session-conf"
+}
+
+variable "kong_portal_session_conf_secret_name" {
+  description = "A string used as the name of the portal gui conf kubernetes secret"
+  type        = string
+  default     = "kong-portal-session-conf"
+}
+
+variable "kong_admin_gui_auth_conf_secret_name" {
+  description = "A string used as the name of the admin gui conf kubernetes secret"
+  type        = string
+  default     = "kong-admin-gui-auth-conf"
+}
+
+variable "kong_portal_auth_conf_secret_name" {
+  description = "A string used as the name of the portal gui kubernetes secret"
+  type        = string
+  default     = "kong-portal-auth-conf"
+}
+
+variable "kong_admin_gui_session_conf_file" {
+  description = "A string that represents the path to the kong admin gui session config file"
+  type        = string
+  default     = "~/.kong_configs/admin_gui_session_conf"
+}
+
+variable "kong_portal_session_conf_file" {
+  description = "A string that represents the path to the kong portal gui session config file"
+  type        = string
+  default     = "~/.kong_configs/portal_session_conf"
+}
+
+variable "kong_admin_gui_auth_conf_file" {
+  description = "A string that represents the path to the kong admin gui auth config file"
+  type        = string
+  default     = "~/.kong_configs/admin_gui_auth_conf"
+}
+
+variable "kong_portal_auth_conf_file" {
+  description = "A string that represents the path to the kong portal gui auth config file"
+  type        = string
+  default     = "~/.kong_configs/portal_auth_conf"
+}
+
+variable "datadog_api_key_secret_name" {
+  description = "A string that represents you datadog api access key secret name"
+  type        = string
+  default     = "api-key"
+}
+
+variable "datadog_api_key_path" {
+  description = "A string that represents the path to the file containing the datadog api key"
+  type        = string
+  default     = "~/.datadog/api.key"
 }

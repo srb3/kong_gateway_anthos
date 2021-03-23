@@ -24,6 +24,6 @@ variable "namespace" {
   default = "default"
 }
 
-variable "api_key" {
+variable "api_key_secret" {
   type = string
 }
