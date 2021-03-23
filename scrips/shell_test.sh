@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+NAMESPACE="kong-hybrid-cp"
+
 SERVICE_NAME="TestService"
 ROUTE_NAME="TestRoute"
 
@@ -10,11 +12,12 @@ KONG_PROXY="$2"
 
 ACTION=${3:-create}
 
-REDIS_HOST="redis.kong-hybrid-cp.svc.cluster.local"
+REDIS_HOST="redis.${NAMESPACE}.svc.cluster.local"
 REDIS_PORT="6379"
 TOKEN="password"
 
-DATADOG_HOST="datadog-statsd.default.svc.cluster.local"
+
+DATADOG_HOST="datadog-statsd.${NAMESPACE}.svc.cluster.local"
 
 function create() {
 

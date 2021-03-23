@@ -28,7 +28,8 @@ resource "helm_release" "datadog" {
 
 resource "kubernetes_service" "datadog-statsd" {
   metadata {
-    name = "datadog-statsd"
+    name      = "datadog-statsd"
+    namespace = var.namespace
     annotations = {
       name = "datadog-statsd"
     }
