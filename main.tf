@@ -147,11 +147,11 @@ locals {
       secret_name = var.session_conf_secret_name
       key         = var.gui_config_secret_key
     },
-    #    {
-    #      name        = "KONG_ADMIN_GUI_AUTH_CONF"
-    #      secret_name = "admin-gui-auth-conf"
-    #      key         = "admin-gui-auth-conf"
-    #    },
+    {
+      name        = "KONG_ADMIN_GUI_AUTH_CONF"
+      secret_name = "admin-gui-auth-conf"
+      key         = "admin-gui-auth-conf"
+    },
     {
       name        = "KONG_PORTAL_SESSION_CONF"
       secret_name = var.session_conf_secret_name
@@ -181,9 +181,8 @@ locals {
 
 # Use the Kong module to create a cp
 module "kong-cp" {
-  #source                 = "Kong/kong-gateway/kubernetes"
-  #version                = "0.0.6"
-  source                 = "/home/steveb/workspace/terraform/modules/kong/terraform-kubernetes-kong-gateway"
+  source                 = "Kong/kong-gateway/kubernetes"
+  version                = "0.0.6"
   deployment_name        = local.kong_cp_deployment_name
   namespace              = local.cp_ns
   deployment_replicas    = var.control_plane_replicas
@@ -206,9 +205,8 @@ module "kong-cp" {
 
 # Use the Kong module to create a dp
 module "kong-dp" {
-  #source                 = "Kong/kong-gateway/kubernetes"
-  #version                = "0.0.6"
-  source                 = "/home/steveb/workspace/terraform/modules/kong/terraform-kubernetes-kong-gateway"
+  source                 = "Kong/kong-gateway/kubernetes"
+  version                = "0.0.6"
   deployment_name        = local.kong_dp_deployment_name
   namespace              = local.dp_ns
   deployment_replicas    = var.data_plane_replicas
