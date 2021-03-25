@@ -348,3 +348,7 @@ variable "datadog_api_key_path" {
   type        = string
   default     = "~/.datadog/api.key"
 }
+
+variable "validity_period_hours" {
+  default = "24"
+}

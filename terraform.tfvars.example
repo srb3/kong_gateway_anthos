@@ -11,6 +11,8 @@ kong_admin_gui_auth_conf_file = "~/.kong_configs/admin_gui_auth_conf_okta_oidc"
 kong_portal_auth_conf_file    = "~/.kong_configs/portal_auth_conf_okta_oidc"
 datadog_api_key_path = "~/.datadog/api.key"
 
+validity_period_hours = "8760"
+
 kong_control_plane_config = {
   "KONG_ADMIN_LISTEN"             = "0.0.0.0:8444 ssl",
   "KONG_ADMIN_SSL_CERT_KEY"       = "/etc/secrets/kong-admin-api/tls.key",

@@ -45,6 +45,7 @@ module "postgres" {
 module "tls_cluster" {
   source                = "./modules/tls"
   private_key_algorithm = var.tls_cluster.private_key_algorithm
+  validity_period_hours = var.validity_period_hours
   ca_common_name        = var.tls_cluster.ca_common_name
   override_common_name  = var.tls_cluster.override_common_name
   namespaces            = var.tls_cluster.namespaces
