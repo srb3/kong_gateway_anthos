@@ -1,11 +1,11 @@
 ---
 name: default
 inputs:
-- name: kong-api-endpoint-ip
+- name: kong-admin-endpoint
   type: string
-- name: kong-manager-endpoint-ip
+- name: kong-manager-endpoint
   type: string
-- name: kong-proxy-endpoint-ip
+- name: kong-proxy-endpoint
   type: string
 - name: kong-super-admin-token
   type: string

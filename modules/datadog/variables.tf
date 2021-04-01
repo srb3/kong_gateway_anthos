@@ -27,3 +27,8 @@ variable "namespace" {
 variable "api_key_secret" {
   type = string
 }
+
+variable "deploy_metrics_server" {
+  type    = bool
+  default = false
+}

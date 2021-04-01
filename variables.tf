@@ -44,15 +44,19 @@ variable "kong_database_password" {
   type        = string
 }
 
+#variable "namespaces" {
+#  default = {
+#    kong-hybrid-cp = {
+#      name = "kong-hybrid-cp"
+#    },
+#    kong-hybrid-dp = {
+#      name = "kong-hybrid-dp"
+#    }
+#  }
+#}
+
 variable "namespaces" {
-  default = {
-    kong-hybrid-cp = {
-      name = "kong-hybrid-cp"
-    },
-    kong-hybrid-dp = {
-      name = "kong-hybrid-dp"
-    }
-  }
+  default = ["kong-hybrid-cp", "kong-hybrid-dp"]
 }
 
 variable "tls_cluster" {
@@ -253,6 +257,54 @@ variable "cp_svcs" {
   }
 }
 
+variable "cp_ingress" {
+  description = "A map that represents kubernetes ingress resources"
+  type = map(object({
+    namespace   = string
+    annotations = map(string)
+    tls = object({
+      hosts       = list(string)
+      secret_name = string
+    })
+    rules = map(object({
+      host = string
+      paths = map(object({
+        service_name = string
+        service_port = number
+      }))
+    }))
+  }))
+  default = {}
+}
+
+variable "dp_ingress" {
+  description = "A map that represents kubernetes ingress resources"
+  type = map(object({
+    namespace   = string
+    annotations = map(string)
+    tls = object({
+      hosts       = list(string)
+      secret_name = string
+    })
+    rules = map(object({
+      host = string
+      paths = map(object({
+        service_name = string
+        service_port = number
+      }))
+    }))
+  }))
+  default = {}
+}
+
+variable "tls_ingress" {
+  default = {
+    ca_common_name = null
+    namespaces     = []
+    certificates   = {}
+  }
+}
+
 variable "control_plane_replicas" {
   description = "The number of control plane replicas to create"
   type        = number
@@ -350,5 +402,17 @@ variable "datadog_api_key_path" {
 }
 
 variable "validity_period_hours" {
-  default = "24"
+  default = "8760"
+}
+
+variable "deploy_datadog_agents" {
+  description = "A boolean to control the deployment of datadog agents into kubernetes"
+  type        = bool
+  default     = true
+}
+
+variable "deploy_metrics_server" {
+  description = "A boolean to control the deployment of the kubernetes metrics server"
+  type        = bool
+  default     = false
 }
