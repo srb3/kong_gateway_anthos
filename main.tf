@@ -11,16 +11,18 @@ provider "helm" {
 # Create two namespaces one for cp and pg and
 # one for dp
 resource "kubernetes_namespace" "kong" {
-  for_each = var.namespaces
+  count = length(var.namespaces)
   metadata {
-    name = each.value["name"]
+    name = var.namespaces[count.index]
   }
 }
 
 module "datadog" {
-  source         = "./modules/datadog"
-  namespace      = local.cp_ns
-  api_key_secret = var.datadog_api_key_secret_name
+  count                 = var.deploy_datadog_agents ? 1 : 0
+  source                = "./modules/datadog"
+  namespace             = local.cp_ns
+  api_key_secret        = var.datadog_api_key_secret_name
+  deploy_metrics_server = var.deploy_metrics_server
 }
 
 module "redis" {
@@ -59,6 +61,13 @@ module "tls_services" {
   certificates   = var.tls_services.certificates
 }
 
+module "tls_ingress" {
+  source         = "./modules/tls"
+  ca_common_name = var.tls_ingress.ca_common_name
+  namespaces     = var.tls_ingress.namespaces
+  certificates   = var.tls_ingress.certificates
+}
+
 locals {
 
   dp_mounts = concat(module.tls_cluster.namespace_name_map[local.dp_ns],
@@ -68,8 +77,8 @@ locals {
 
   services = concat(module.kong-cp.services, module.kong-dp.services)
 
-  cp_ns = kubernetes_namespace.kong["kong-hybrid-cp"].metadata[0].name
-  dp_ns = kubernetes_namespace.kong["kong-hybrid-dp"].metadata[0].name
+  cp_ns = kubernetes_namespace.kong.0.metadata[0].name
+  dp_ns = kubernetes_namespace.kong.1.metadata[0].name
 
   proxy        = module.kong-dp.proxy_endpoint
   admin        = module.kong-cp.admin_endpoint
@@ -192,6 +201,7 @@ module "kong-cp" {
     "ad.datadoghq.com/${local.kong_cp_deployment_name}.instances"    = "[{\"kong_status_url\": \"http://%%host%%:8001/status/\"}]"
     "ad.datadoghq.com/${local.kong_cp_deployment_name}.logs"         = "[{\"source\":\"kong\",\"service\":\"${local.kong_cp_deployment_name}\"}]"
   }
+  ingress    = var.cp_ingress
   depends_on = [kubernetes_namespace.kong]
 }
 
@@ -216,5 +226,6 @@ module "kong-dp" {
     "ad.datadoghq.com/${local.kong_dp_deployment_name}.instances"    = "[{\"kong_status_url\": \"http://%%host%%:8001/status/\"}]"
     "ad.datadoghq.com/${local.kong_dp_deployment_name}.logs"         = "[{\"source\":\"kong\",\"service\":\"${local.kong_dp_deployment_name}\"}]"
   }
+  ingress    = var.dp_ingress
   depends_on = [kubernetes_namespace.kong]
 }

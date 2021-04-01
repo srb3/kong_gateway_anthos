@@ -49,7 +49,8 @@ resource "kubernetes_service" "datadog-statsd" {
   }
 }
 
-resource "helm_release" "helm" {
+resource "helm_release" "metrics" {
+  count      = var.deploy_metrics_server ? 1 : 0
   name       = "metrics-server"
   repository = "https://charts.helm.sh/stable"
   chart      = "metrics-server"
