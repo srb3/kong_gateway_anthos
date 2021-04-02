@@ -1,8 +1,8 @@
 resource "kubernetes_secret" "kong_enterprise_docker_cfg-cp" {
-  count = length(var.namespaces)
+  for_each = var.namespaces
   metadata {
     name      = var.image_pull_secret_name
-    namespace = kubernetes_namespace.kong[count.index].metadata[0].name
+    namespace = kubernetes_namespace.kong[each.key].metadata[0].name
   }
 
   data = {
@@ -13,10 +13,10 @@ resource "kubernetes_secret" "kong_enterprise_docker_cfg-cp" {
 }
 
 resource "kubernetes_secret" "license-cp" {
-  count = length(var.namespaces)
+  for_each = var.namespaces
   metadata {
     name      = var.kong_license_secret_name
-    namespace = kubernetes_namespace.kong[count.index].metadata[0].name
+    namespace = kubernetes_namespace.kong[each.key].metadata[0].name
   }
 
   type = "Opaque"
@@ -28,7 +28,7 @@ resource "kubernetes_secret" "license-cp" {
 resource "kubernetes_secret" "kong-enterprise-superuser-password" {
   metadata {
     name      = var.kong_superuser_secret_name
-    namespace = kubernetes_namespace.kong.0.metadata[0].name
+    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
   }
 
   type = "Opaque"
@@ -37,34 +37,42 @@ resource "kubernetes_secret" "kong-enterprise-superuser-password" {
   }
 }
 
+variable "admin_gui_session_conf_backup" {
+  default = "{\"cookie_secure\":true,\"storage\":\"kong\",\"cookie_name\":\"admin_session\",\"cookie_lifetime\":31557600,\"cookie_samesite\":\"off\",\"secret\":\"admin\"}"
+}
+
 resource "kubernetes_secret" "kong-admin-gui-session-conf" {
   metadata {
     name      = var.kong_admin_gui_session_conf_secret_name
-    namespace = kubernetes_namespace.kong.0.metadata[0].name
+    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
   }
 
   type = "Opaque"
   data = {
-    (var.kong_admin_gui_session_conf_secret_name) = file(var.kong_admin_gui_session_conf_file)
+    (var.kong_admin_gui_session_conf_secret_name) = try(file(var.kong_admin_gui_session_conf_file), var.admin_gui_session_conf_backup)
   }
+}
+
+variable "portal_session_conf_backup" {
+  default = "{\"storage\":\"kong\",\"cookie_name\":\"portal_session\",\"secret\":\"change-me\",\"cookie_secure\":false}"
 }
 
 resource "kubernetes_secret" "kong-portal-session-conf" {
   metadata {
     name      = var.kong_portal_session_conf_secret_name
-    namespace = kubernetes_namespace.kong.0.metadata[0].name
+    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
   }
 
   type = "Opaque"
   data = {
-    (var.kong_portal_session_conf_secret_name) = file(var.kong_portal_session_conf_file)
+    (var.kong_portal_session_conf_secret_name) = try(file(var.kong_portal_session_conf_file), var.portal_session_conf_backup)
   }
 }
 
 resource "kubernetes_secret" "kong-admin-gui-auth-conf" {
   metadata {
     name      = var.kong_admin_gui_auth_conf_secret_name
-    namespace = kubernetes_namespace.kong.0.metadata[0].name
+    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
   }
 
   type = "Opaque"
@@ -76,19 +84,19 @@ resource "kubernetes_secret" "kong-admin-gui-auth-conf" {
 resource "kubernetes_secret" "kong-portal-auth-conf" {
   metadata {
     name      = var.kong_portal_auth_conf_secret_name
-    namespace = kubernetes_namespace.kong.0.metadata[0].name
+    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
   }
 
   type = "Opaque"
   data = {
-    (var.kong_portal_auth_conf_secret_name) = file(var.kong_portal_auth_conf_file)
+    (var.kong_portal_auth_conf_secret_name) = try(file(var.kong_portal_auth_conf_file), "{}")
   }
 }
 
 resource "kubernetes_secret" "kong-database-password" {
   metadata {
     name      = var.kong_database_secret_name
-    namespace = kubernetes_namespace.kong.0.metadata[0].name
+    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
   }
 
   type = "Opaque"
@@ -100,11 +108,11 @@ resource "kubernetes_secret" "kong-database-password" {
 resource "kubernetes_secret" "datadog-api-key" {
   metadata {
     name      = var.datadog_api_key_secret_name
-    namespace = kubernetes_namespace.kong.0.metadata[0].name
+    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
   }
 
   type = "Opaque"
   data = {
-    (var.datadog_api_key_secret_name) = file(var.datadog_api_key_path)
+    (var.datadog_api_key_secret_name) = try(file(var.datadog_api_key_path), "")
   }
 }

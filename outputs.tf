@@ -1,5 +1,4 @@
 # the following outputs are used in the test suite
-
 output "kong-admin-endpoint" {
   value = local.admin
 }

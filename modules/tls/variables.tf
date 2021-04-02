@@ -34,6 +34,11 @@ variable "namespaces" {
   default = []
 }
 
+variable "namespace_map" {
+  type    = map(string)
+  default = {}
+}
+
 variable "organization" {
   default = "Kong"
 }

@@ -50,8 +50,13 @@ resource "kubernetes_stateful_set" "postgres" {
             value = "kong"
           }
           env {
-            name  = "POSTGRES_PASSWORD"
-            value = "kong"
+            name = "POSTGRES_PASSWORD"
+            value_from {
+              secret_key_ref {
+                key  = var.kong_database_secret_name
+                name = var.kong_database_secret_name
+              }
+            }
           }
           env {
             name  = "POSTGRES_DB"

@@ -23,7 +23,7 @@ resource "kubernetes_secret" "this-ca-secret" {
   count = length(var.namespaces)
   metadata {
     name      = var.ca_common_name
-    namespace = var.namespaces[count.index]
+    namespace = var.namespace_map[var.namespaces[count.index]]
   }
 
   data = {
@@ -71,21 +71,25 @@ locals {
     (k) => [var.ca_common_name]
   }
 
+  # create a list of the namespaces in the certificates hash
   cert_ns_list = distinct(flatten([for k, v in var.certificates :
     [
       for x in v.namespaces : x
     ]
   ]))
 
+  # map the certificate namespaces to the certificate name if the name
+  # is included in the namespace array
   cert_ns_map = { for k in local.cert_ns_list :
     (k) => [for x, y in var.certificates : x if contains(y.namespaces, k)]...
   }
 
+  # create a list of certificate names concated with namespace
   cert_ns_name = flatten([for k, v in var.certificates :
     [
       for x in v.namespaces :
       [
-        "${x},${k}"
+        "${var.namespace_map[x]},${k}"
       ]
     ]
   ])
@@ -103,6 +107,10 @@ locals {
   }
 
   ns_map = merge(local.map_tmp_1, local.map_tmp_2)
+
+  #  ns = { for x, y in loca.ns_map :
+  #    x => y
+  #  }
 
 }
 
