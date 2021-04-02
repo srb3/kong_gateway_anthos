@@ -45,7 +45,7 @@ resource "kubernetes_secret" "kong-admin-gui-session-conf" {
 
   type = "Opaque"
   data = {
-    (var.kong_admin_gui_session_conf_secret_name) = file(var.kong_admin_gui_session_conf_file)
+    (var.kong_admin_gui_session_conf_secret_name) = try(file(var.kong_admin_gui_session_conf_file), "{}")
   }
 }
 
@@ -57,7 +57,7 @@ resource "kubernetes_secret" "kong-portal-session-conf" {
 
   type = "Opaque"
   data = {
-    (var.kong_portal_session_conf_secret_name) = file(var.kong_portal_session_conf_file)
+    (var.kong_portal_session_conf_secret_name) = try(file(var.kong_portal_session_conf_file), "{}")
   }
 }
 
@@ -81,7 +81,7 @@ resource "kubernetes_secret" "kong-portal-auth-conf" {
 
   type = "Opaque"
   data = {
-    (var.kong_portal_auth_conf_secret_name) = file(var.kong_portal_auth_conf_file)
+    (var.kong_portal_auth_conf_secret_name) = try(file(var.kong_portal_auth_conf_file), "{}")
   }
 }
 
@@ -105,6 +105,6 @@ resource "kubernetes_secret" "datadog-api-key" {
 
   type = "Opaque"
   data = {
-    (var.datadog_api_key_secret_name) = file(var.datadog_api_key_path)
+    (var.datadog_api_key_secret_name) = try(file(var.datadog_api_key_path), "")
   }
 }
