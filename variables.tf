@@ -127,29 +127,15 @@ variable "dp_svcs" {
       target_port = number
     }))
   }))
-  default = {}
-}
-
-variable "dp_lb_svcs" {
-  description = "A map of objects that are used to create LoadBalancer services to expose Kong endpoints to outside of the cluster"
-  type = map(object({
-    load_balancer_source_ranges = list(string)
-    annotations                 = map(string)
-    external_traffic_policy     = string
-    health_check_node_port      = number
-    ports = map(object({
-      port        = number
-      protocol    = string
-      target_port = number
-    }))
-  }))
   default = {
     "kong-proxy" = {
-      load_balancer_source_ranges = ["0.0.0.0/0"]
-      annotations                 = {}
-      external_traffic_policy     = "Cluster"
-      health_check_node_port      = null
+      annotations = {}
       ports = {
+        "kong-proxy" = {
+          port        = 8000
+          protocol    = "TCP"
+          target_port = 8000
+        },
         "kong-proxy-ssl" = {
           port        = 8443
           protocol    = "TCP"
@@ -158,6 +144,22 @@ variable "dp_lb_svcs" {
       }
     }
   }
+}
+
+variable "dp_lb_svcs" {
+  description = "A map of objects that are used to create LoadBalancer services to expose Kong endpoints to outside of the cluster"
+  type = map(object({
+    annotations                 = map(string)
+    load_balancer_source_ranges = list(string)
+    external_traffic_policy     = string
+    health_check_node_port      = number
+    ports = map(object({
+      port        = number
+      protocol    = string
+      target_port = number
+    }))
+  }))
+  default = {}
 }
 
 variable "cp_lb_svcs" {
@@ -173,44 +175,45 @@ variable "cp_lb_svcs" {
       target_port = number
     }))
   }))
-  default = {
-    "kong-admin-api" = {
-      load_balancer_source_ranges = ["0.0.0.0/0"]
-      annotations                 = {}
-      external_traffic_policy     = "Cluster"
-      health_check_node_port      = null
-      ports = {
-        "kong-admin-ssl" = {
-          port        = 8444
-          protocol    = "TCP"
-          target_port = 8444
-        },
-        "kong-portal-admin-ssl" = {
-          port        = 8447
-          protocol    = "TCP"
-          target_port = 8447
-        }
-      }
-    }
-    "kong-gui" = {
-      load_balancer_source_ranges = ["0.0.0.0/0"]
-      annotations                 = {}
-      external_traffic_policy     = "Cluster"
-      health_check_node_port      = null
-      ports = {
-        "kong-manager-ssl" = {
-          port        = 8445
-          protocol    = "TCP"
-          target_port = 8445
-        },
-        "kong-portal-gui-ssl" = {
-          port        = 8446
-          protocol    = "TCP"
-          target_port = 8446
-        }
-      }
-    }
-  }
+  default = {}
+}
+
+variable "cp_ingress" {
+  description = "A map that represents kubernetes ingress resources"
+  type = map(object({
+    annotations = map(string)
+    tls = object({
+      hosts       = list(string)
+      secret_name = string
+    })
+    rules = map(object({
+      host = string
+      paths = map(object({
+        service_name = string
+        service_port = number
+      }))
+    }))
+  }))
+  default = {}
+}
+
+variable "dp_ingress" {
+  description = "A map that represents kubernetes ingress resources"
+  type = map(object({
+    annotations = map(string)
+    tls = object({
+      hosts       = list(string)
+      secret_name = string
+    })
+    rules = map(object({
+      host = string
+      paths = map(object({
+        service_name = string
+        service_port = number
+      }))
+    }))
+  }))
+  default = {}
 }
 
 variable "cp_svcs" {
@@ -236,6 +239,56 @@ variable "cp_svcs" {
           port        = 8006
           protocol    = "TCP"
           target_port = 8006
+        }
+      }
+    }
+    "kong-api-man" = {
+      annotations = {}
+      ports = {
+        "kong-admin" = {
+          port        = 8001
+          protocol    = "TCP"
+          target_port = 8001
+        },
+        "kong-manager" = {
+          port        = 8002
+          protocol    = "TCP"
+          target_port = 8002
+        },
+        "kong-admin-ssl" = {
+          port        = 8444
+          protocol    = "TCP"
+          target_port = 8444
+        },
+        "kong-manager-ssl" = {
+          port        = 8445
+          protocol    = "TCP"
+          target_port = 8445
+        }
+      }
+    }
+    "kong-portal" = {
+      annotations = {}
+      ports = {
+        "kong-portal-admin" = {
+          port        = 8004
+          protocol    = "TCP"
+          target_port = 8004
+        },
+        "kong-portal-gui" = {
+          port        = 8003
+          protocol    = "TCP"
+          target_port = 8003
+        },
+        "kong-portal-admin-ssl" = {
+          port        = 8447
+          protocol    = "TCP"
+          target_port = 8447
+        },
+        "kong-portal-gui-ssl" = {
+          port        = 8446
+          protocol    = "TCP"
+          target_port = 8446
         }
       }
     }
