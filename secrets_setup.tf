@@ -37,6 +37,10 @@ resource "kubernetes_secret" "kong-enterprise-superuser-password" {
   }
 }
 
+variable "admin_gui_session_conf_backup" {
+  default = "{\"cookie_secure\":true,\"storage\":\"kong\",\"cookie_name\":\"admin_session\",\"cookie_lifetime\":31557600,\"cookie_samesite\":\"off\",\"secret\":\"admin\"}"
+}
+
 resource "kubernetes_secret" "kong-admin-gui-session-conf" {
   metadata {
     name      = var.kong_admin_gui_session_conf_secret_name
@@ -45,8 +49,12 @@ resource "kubernetes_secret" "kong-admin-gui-session-conf" {
 
   type = "Opaque"
   data = {
-    (var.kong_admin_gui_session_conf_secret_name) = try(file(var.kong_admin_gui_session_conf_file), "{}")
+    (var.kong_admin_gui_session_conf_secret_name) = try(file(var.kong_admin_gui_session_conf_file), var.admin_gui_session_conf_backup)
   }
+}
+
+variable "portal_session_conf_backup" {
+  default = "{\"storage\":\"kong\",\"cookie_name\":\"portal_session\",\"secret\":\"change-me\",\"cookie_secure\":false}"
 }
 
 resource "kubernetes_secret" "kong-portal-session-conf" {
@@ -57,7 +65,7 @@ resource "kubernetes_secret" "kong-portal-session-conf" {
 
   type = "Opaque"
   data = {
-    (var.kong_portal_session_conf_secret_name) = try(file(var.kong_portal_session_conf_file), "{}")
+    (var.kong_portal_session_conf_secret_name) = try(file(var.kong_portal_session_conf_file), var.portal_session_conf_backup)
   }
 }
 
