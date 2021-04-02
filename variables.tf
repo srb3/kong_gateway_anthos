@@ -416,3 +416,49 @@ variable "deploy_metrics_server" {
   type        = bool
   default     = false
 }
+
+variable "aws_region" {
+  description = "The name of the aws region to use"
+  type        = string
+}
+
+variable "aws_creds_file" {
+  description = "The path to an aws credentials file to use"
+  type        = string
+}
+
+variable "route53_zone_id" {
+  description = "The name of the dns zone to use"
+  type        = string
+  default     = ""
+}
+
+variable "proxy_cname" {
+  description = "The name to give the kong proxy cname record"
+  type        = string
+  default     = ""
+}
+
+variable "portal_gui_cname" {
+  description = "The name to give the kong portal cname record"
+  type        = string
+  default     = ""
+}
+
+variable "manager_cname" {
+  description = "The name to give the kong manager cname record"
+  type        = string
+  default     = ""
+}
+
+variable "admin_cname" {
+  description = "The name to give the kong admin cname record"
+  type        = string
+  default     = ""
+}
+
+variable "portal_admin_cname" {
+  description = "The name to give the kong portal admin cname record"
+  type        = string
+  default     = ""
+}
