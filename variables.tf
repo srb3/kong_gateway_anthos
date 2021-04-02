@@ -295,43 +295,7 @@ variable "cp_svcs" {
   }
 }
 
-variable "cp_ingress" {
-  description = "A map that represents kubernetes ingress resources"
-  type = map(object({
-    annotations = map(string)
-    tls = object({
-      hosts       = list(string)
-      secret_name = string
-    })
-    rules = map(object({
-      host = string
-      paths = map(object({
-        service_name = string
-        service_port = number
-      }))
-    }))
-  }))
-  default = {}
-}
 
-variable "dp_ingress" {
-  description = "A map that represents kubernetes ingress resources"
-  type = map(object({
-    annotations = map(string)
-    tls = object({
-      hosts       = list(string)
-      secret_name = string
-    })
-    rules = map(object({
-      host = string
-      paths = map(object({
-        service_name = string
-        service_port = number
-      }))
-    }))
-  }))
-  default = {}
-}
 
 variable "tls_ingress" {
   default = {
