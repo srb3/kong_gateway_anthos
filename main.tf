@@ -11,9 +11,9 @@ provider "helm" {
 # Create two namespaces one for cp and pg and
 # one for dp
 resource "kubernetes_namespace" "kong" {
-  count = length(var.namespaces)
+  for_each = var.namespaces
   metadata {
-    name = var.namespaces[count.index]
+    name = terraform.workspace == "default" ? each.value : "${each.value}-${terraform.workspace}"
   }
 }
 
@@ -51,6 +51,7 @@ module "tls_cluster" {
   ca_common_name        = var.tls_cluster.ca_common_name
   override_common_name  = var.tls_cluster.override_common_name
   namespaces            = var.tls_cluster.namespaces
+  namespace_map         = local.namespace_map
   certificates          = var.tls_cluster.certificates
 }
 
@@ -58,6 +59,7 @@ module "tls_services" {
   source         = "./modules/tls"
   ca_common_name = var.tls_services.ca_common_name
   namespaces     = var.tls_services.namespaces
+  namespace_map  = local.namespace_map
   certificates   = var.tls_services.certificates
 }
 
@@ -65,20 +67,25 @@ module "tls_ingress" {
   source         = "./modules/tls"
   ca_common_name = var.tls_ingress.ca_common_name
   namespaces     = var.tls_ingress.namespaces
+  namespace_map  = local.namespace_map
   certificates   = var.tls_ingress.certificates
 }
 
 locals {
+  cp_ns      = kubernetes_namespace.kong["control_plane"].metadata[0].name
+  dp_ns      = kubernetes_namespace.kong["data_plane"].metadata[0].name
+  namespaces = [local.cp_ns, local.dp_ns]
+  namespace_map = {
+    "control_plane" = kubernetes_namespace.kong["control_plane"].metadata[0].name
+    "data_plane"    = kubernetes_namespace.kong["data_plane"].metadata[0].name
+  }
 
-  dp_mounts = concat(module.tls_cluster.namespace_name_map[local.dp_ns],
-  module.tls_services.namespace_name_map[local.dp_ns])
-  cp_mounts = concat(module.tls_cluster.namespace_name_map[local.cp_ns],
-  module.tls_services.namespace_name_map[local.cp_ns])
+  dp_mounts = concat(module.tls_cluster.namespace_name_map["data_plane"],
+  module.tls_services.namespace_name_map["data_plane"])
+  cp_mounts = concat(module.tls_cluster.namespace_name_map["control_plane"],
+  module.tls_services.namespace_name_map["control_plane"])
 
   services = concat(module.kong-cp.services, module.kong-dp.services)
-
-  cp_ns = kubernetes_namespace.kong.0.metadata[0].name
-  dp_ns = kubernetes_namespace.kong.1.metadata[0].name
 
   proxy        = module.kong-dp.proxy_endpoint
   admin        = module.kong-cp.admin_endpoint
@@ -89,8 +96,8 @@ locals {
   cluster   = module.kong-cp.cluster_endpoint
   telemetry = module.kong-cp.telemetry_endpoint
 
-  kong_cp_deployment_name = "kong-enterprise-cp"
-  kong_dp_deployment_name = "kong-enterprise-dp"
+  kong_cp_deployment_name = local.cp_ns
+  kong_dp_deployment_name = local.dp_ns
   kong_image              = var.kong_image
 
   kong_image_pull_secrets = [
@@ -129,9 +136,9 @@ locals {
     }
   ]
 
-  #
+
   # Control plane configuration 
-  #
+
   kong_cp_secret_config = [
     {
       name        = "KONG_LICENSE_DATA"
@@ -178,12 +185,18 @@ locals {
     }
   ]
 
+  kong_dp_merge_config = {
+    "KONG_CLUSTER_CONTROL_PLANE"      = "kong-cluster.${local.namespace_map["control_plane"]}.svc.cluster.local:8005",
+    "KONG_CLUSTER_TELEMETRY_ENDPOINT" = "kong-cluster.${local.namespace_map["control_plane"]}.svc.cluster.local:8006"
+  }
+
+  kong_dp_config = merge(var.kong_data_plane_config, local.kong_dp_merge_config)
 }
 
 # Use the Kong module to create a cp
 module "kong-cp" {
   source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.9"
+  version                = "0.0.10"
   deployment_name        = local.kong_cp_deployment_name
   namespace              = local.cp_ns
   deployment_replicas    = var.control_plane_replicas
@@ -205,14 +218,14 @@ module "kong-cp" {
   depends_on = [kubernetes_namespace.kong]
 }
 
-# Use the Kong module to create a dp
+## Use the Kong module to create a dp
 module "kong-dp" {
   source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.9"
+  version                = "0.0.10"
   deployment_name        = local.kong_dp_deployment_name
   namespace              = local.dp_ns
   deployment_replicas    = var.data_plane_replicas
-  config                 = var.kong_data_plane_config
+  config                 = local.kong_dp_config
   secret_config          = local.kong_dp_secret_config
   kong_image             = local.kong_image
   image_pull_secrets     = local.kong_image_pull_secrets
