@@ -8,6 +8,11 @@ provider "helm" {
   }
 }
 
+provider "aws" {
+  region                  = var.aws_region
+  shared_credentials_file = var.aws_creds_file
+}
+
 # Create two namespaces one for cp and pg and
 # one for dp
 resource "kubernetes_namespace" "kong" {
@@ -71,6 +76,46 @@ module "tls_ingress" {
   certificates   = var.tls_ingress.certificates
 }
 
+module "dns_name_proxy" {
+  count         = var.route53_zone_id != "" ? 1 : 0
+  source        = "./modules/route53"
+  zone_id       = var.route53_zone_id
+  cname_name    = var.proxy_cname
+  cname_targets = [module.kong-dp.ingress.data-plane-ingress.endpoint]
+}
+
+module "dns_name_devportal" {
+  count         = var.route53_zone_id != "" ? 1 : 0
+  source        = "./modules/route53"
+  zone_id       = var.route53_zone_id
+  cname_name    = var.portal_gui_cname
+  cname_targets = [module.kong-cp.ingress.control-plane-ingress.endpoint]
+}
+
+module "dns_name_manager" {
+  count         = var.route53_zone_id != "" ? 1 : 0
+  source        = "./modules/route53"
+  zone_id       = var.route53_zone_id
+  cname_name    = var.manager_cname
+  cname_targets = [replace(module.kong-cp.manager_ssl_endpoint, local.rp, "")]
+}
+
+module "dns_name_admin" {
+  count         = var.route53_zone_id != "" ? 1 : 0
+  source        = "./modules/route53"
+  zone_id       = var.route53_zone_id
+  cname_name    = var.admin_cname
+  cname_targets = [replace(module.kong-cp.admin_ssl_endpoint, local.rp, "")]
+}
+
+module "dns_name_portal_admin" {
+  count         = var.route53_zone_id != "" ? 1 : 0
+  source        = "./modules/route53"
+  zone_id       = var.route53_zone_id
+  cname_name    = var.portal_admin_cname
+  cname_targets = [replace(module.kong-cp.portal_admin_ssl_endpoint, local.rp, "")]
+}
+
 locals {
   cp_ns      = kubernetes_namespace.kong["control_plane"].metadata[0].name
   dp_ns      = kubernetes_namespace.kong["data_plane"].metadata[0].name
@@ -80,6 +125,7 @@ locals {
     "data_plane"    = kubernetes_namespace.kong["data_plane"].metadata[0].name
   }
 
+  rp = "/:[0-9]*/"
   dp_mounts = concat(module.tls_cluster.namespace_name_map["data_plane"],
   module.tls_services.namespace_name_map["data_plane"])
   cp_mounts = concat(module.tls_cluster.namespace_name_map["control_plane"],
@@ -196,7 +242,7 @@ locals {
 # Use the Kong module to create a cp
 module "kong-cp" {
   source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.10"
+  version                = "0.0.11"
   deployment_name        = local.kong_cp_deployment_name
   namespace              = local.cp_ns
   deployment_replicas    = var.control_plane_replicas
@@ -221,7 +267,7 @@ module "kong-cp" {
 ## Use the Kong module to create a dp
 module "kong-dp" {
   source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.10"
+  version                = "0.0.11"
   deployment_name        = local.kong_dp_deployment_name
   namespace              = local.dp_ns
   deployment_replicas    = var.data_plane_replicas

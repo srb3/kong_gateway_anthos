@@ -11,7 +11,16 @@ kong_database_password = "kong"
 #kong_portal_auth_conf_file    = "~/.kong_configs/portal_auth_conf_okta_oidc"
 #datadog_api_key_path = "~/.datadog/api.key"
 
-validity_period_hours = "8760"
+#route53_zone_id = ""
+#aws_region      = ""
+#aws_creds_file  = ""
+
+#proxy_cname        = ""
+#portal_gui_cname   = ""
+#manager_cname      = ""
+#admin_cname        = ""
+#portal_admin_cname = ""
+#validity_period_hours = "8760"
 
 deploy_datadog_agents = false
 deploy_metrics_server = false
