@@ -420,11 +420,13 @@ variable "deploy_metrics_server" {
 variable "aws_region" {
   description = "The name of the aws region to use"
   type        = string
+  default     = "eu-west-1"
 }
 
 variable "aws_creds_file" {
   description = "The path to an aws credentials file to use"
   type        = string
+  default     = ""
 }
 
 variable "route53_zone_id" {
