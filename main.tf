@@ -40,13 +40,36 @@ module "service" {
   namespace = local.cp_ns
 }
 
+# If no KONG_PG_HOST configuration option is supplied then
+# we will deploy a postgres database into the control plane
+# namespace
 module "postgres" {
+  count                      = lookup(var.kong_control_plane_config, "KONG_PG_HOST", "") == "" ? 1 : 0
   source                     = "./modules/postgres"
   namespace                  = local.cp_ns
   kong_superuser_secret_name = var.kong_superuser_secret_name
   kong_database_secret_name  = var.kong_database_secret_name
   kong_license_secret_name   = var.kong_license_secret_name
   kong_image                 = var.kong_image
+  kong_database_port         = lookup(var.kong_control_plane_config, "KONG_PG_PORT", "5432")
+  kong_database_user         = lookup(var.kong_control_plane_config, "KONG_PG_USER", "kong")
+  kong_database_name         = lookup(var.kong_control_plane_config, "KONG_PG_DATABASE", "kong")
+}
+
+# I the KONG_PG_HOST configuration option is provided then
+# we will run the database init scripts
+module "postgres_init" {
+  count                      = lookup(var.kong_control_plane_config, "KONG_PG_HOST", "") != "" ? 1 : 0
+  source                     = "./modules/postgres_init"
+  namespace                  = local.cp_ns
+  kong_superuser_secret_name = var.kong_superuser_secret_name
+  kong_database_secret_name  = var.kong_database_secret_name
+  kong_license_secret_name   = var.kong_license_secret_name
+  kong_image                 = var.kong_image
+  kong_database_host         = lookup(var.kong_control_plane_config, "KONG_PG_HOST")
+  kong_database_port         = lookup(var.kong_control_plane_config, "KONG_PG_PORT", "5432")
+  kong_database_user         = lookup(var.kong_control_plane_config, "KONG_PG_USER", "kong")
+  kong_database_name         = lookup(var.kong_control_plane_config, "KONG_PG_DATABASE", "kong")
 }
 
 module "tls_cluster" {
@@ -61,11 +84,12 @@ module "tls_cluster" {
 }
 
 module "tls_services" {
-  source         = "./modules/tls"
-  ca_common_name = var.tls_services.ca_common_name
-  namespaces     = var.tls_services.namespaces
-  namespace_map  = local.namespace_map
-  certificates   = var.tls_services.certificates
+  source                = "./modules/tls"
+  ca_common_name        = var.tls_services.ca_common_name
+  validity_period_hours = var.validity_period_hours
+  namespaces            = var.tls_services.namespaces
+  namespace_map         = local.namespace_map
+  certificates          = var.tls_services.certificates
 }
 
 module "tls_ingress" {
@@ -218,8 +242,8 @@ locals {
     }
   ]
 
-  pg_host = lookup(var.kong_control_plane_config, "KONG_PG_HOST", "") == "" ? { "KONG_PG_HOST" = module.postgres.connection.ip } : {}
-  pg_port = lookup(var.kong_control_plane_config, "KONG_PG_PORT", "") == "" ? { "KONG_PG_PORT" = module.postgres.connection.port } : {}
+  pg_host = lookup(var.kong_control_plane_config, "KONG_PG_HOST", "") == "" ? { "KONG_PG_HOST" = module.postgres.0.connection.ip } : {}
+  pg_port = lookup(var.kong_control_plane_config, "KONG_PG_PORT", "") == "" ? { "KONG_PG_PORT" = module.postgres.0.connection.port } : {}
 
   kong_cp_config = merge(var.kong_control_plane_config, local.pg_host, local.pg_port)
 
@@ -257,7 +281,7 @@ module "kong-cp" {
   deployment_annotations = {
     "ad.datadoghq.com/${local.kong_cp_deployment_name}.check_names"  = "[\"kong\"]"
     "ad.datadoghq.com/${local.kong_cp_deployment_name}.init_configs" = "[{}]"
-    "ad.datadoghq.com/${local.kong_cp_deployment_name}.instances"    = "[{\"kong_status_url\": \"http://%%host%%:8001/status/\"}]"
+    "ad.datadoghq.com/${local.kong_cp_deployment_name}.instances"    = "[{\"kong_status_url\": \"http://%%host%%:8100/status/\"}]"
     "ad.datadoghq.com/${local.kong_cp_deployment_name}.logs"         = "[{\"source\":\"kong\",\"service\":\"${local.kong_cp_deployment_name}\"}]"
   }
   ingress    = var.cp_ingress
@@ -282,7 +306,7 @@ module "kong-dp" {
   deployment_annotations = {
     "ad.datadoghq.com/${local.kong_dp_deployment_name}.check_names"  = "[\"kong\"]"
     "ad.datadoghq.com/${local.kong_dp_deployment_name}.init_configs" = "[{}]"
-    "ad.datadoghq.com/${local.kong_dp_deployment_name}.instances"    = "[{\"kong_status_url\": \"http://%%host%%:8001/status/\"}]"
+    "ad.datadoghq.com/${local.kong_dp_deployment_name}.instances"    = "[{\"kong_status_url\": \"http://%%host%%:8100/status/\"}]"
     "ad.datadoghq.com/${local.kong_dp_deployment_name}.logs"         = "[{\"source\":\"kong\",\"service\":\"${local.kong_dp_deployment_name}\"}]"
   }
   ingress    = var.dp_ingress

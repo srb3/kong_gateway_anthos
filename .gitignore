@@ -27,6 +27,7 @@ Berksfile.lock
 Policyfile.lock.json
 
 # terraform
+terraform-new.tfvars
 terraform.tfvars
 terraform.tfstate*
 .terraform*

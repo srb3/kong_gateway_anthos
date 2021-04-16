@@ -1,0 +1,26 @@
+_format_version: "1.1"
+_workspace: test
+services:
+- connect_timeout: 60000
+  host: httpbin.org
+  name: TestService
+  path: /get
+  port: 80
+  protocol: http
+  read_timeout: 60000
+  retries: 5
+  write_timeout: 60000
+  routes:
+  - name: TestRoute
+    paths:
+    - /test
+    path_handling: v0
+    preserve_host: false
+    protocols:
+    - http
+    - https
+    regex_priority: 0
+    strip_path: true
+    https_redirect_status_code: 426
+    request_buffering: true
+    response_buffering: true

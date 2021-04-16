@@ -6,7 +6,7 @@ resource "kubernetes_service" "postgres" {
   spec {
     port {
       name        = "pgql"
-      port        = 5432
+      port        = var.kong_database_port
       protocol    = "TCP"
       target_port = 5432
     }
@@ -47,7 +47,7 @@ resource "kubernetes_stateful_set" "postgres" {
         container {
           env {
             name  = "POSTGRES_USER"
-            value = "kong"
+            value = var.kong_database_user
           }
           env {
             name = "POSTGRES_PASSWORD"
@@ -60,7 +60,7 @@ resource "kubernetes_stateful_set" "postgres" {
           }
           env {
             name  = "POSTGRES_DB"
-            value = "kong"
+            value = var.kong_database_name
           }
           env {
             name  = "PGDATA"
@@ -71,28 +71,28 @@ resource "kubernetes_stateful_set" "postgres" {
           port {
             container_port = 5432
           }
-          #          volume_mount {
-          #            mount_path = "/var/lib/postgresql/data"
-          #            name       = "datadir"
-          #            sub_path   = "pgdata"
-          #          }
+          volume_mount {
+            mount_path = "/var/lib/postgresql/data"
+            name       = "datadir"
+            sub_path   = "pgdata"
+          }
         }
         termination_grace_period_seconds = 60
       }
     }
-    #    volume_claim_template {
-    #      metadata {
-    #        name = "datadir"
-    #      }
-    #      spec {
-    #        access_modes = ["ReadWriteOnce"]
-    #        resources {
-    #          requests = {
-    #            storage = "16Gi"
-    #          }
-    #        }
-    #      }
-    #    }
+    volume_claim_template {
+      metadata {
+        name = "datadir"
+      }
+      spec {
+        access_modes = ["ReadWriteOnce"]
+        resources {
+          requests = {
+            storage = "16Gi"
+          }
+        }
+      }
+    }
   }
 }
 
@@ -173,11 +173,11 @@ resource "kubernetes_job" "demo" {
           }
           env {
             name  = "KONG_PG_USER"
-            value = "kong"
+            value = var.kong_database_user
           }
           env {
             name  = "KONG_PG_DATABASE"
-            value = "kong"
+            value = var.kong_database_name
           }
           env {
             name  = "KONG_PORT"

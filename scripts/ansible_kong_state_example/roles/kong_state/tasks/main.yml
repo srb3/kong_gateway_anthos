@@ -1,0 +1,36 @@
+- name: Write workspace creation script
+  template:
+    src: kong_workspace_create.j2
+    dest: /tmp/kong_workspace_create
+    mode: a+x
+
+- name: Execute create workspace script
+  command: /tmp/kong_workspace_create {{ item }} {{ kong_admin_endpoint }} {{ kong_admin_token }}
+  loop: "{{ workspace_list }}"
+
+- name: user create script create
+  template:
+    src: kong_user_create.j2
+    dest: /tmp/kong_user_create
+    mode: a+x
+
+- name: Execute create user script
+  command: /tmp/kong_user_create {{ kong_admin_endpoint }} {{ item.username }} {{ item.email }} {{ item.custom_id }} {{ item.password }} {{ kong_admin_token }} {{ item.workspace }}
+  loop: "{{ user_hash }}"
+
+- name: Create Kong DecK directory
+  file:
+    path: /tmp/deck_files
+    recurse: yes
+    state: directory
+    mode: '0755'
+
+- name: Write global plugin YAML file
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+  loop: "{{ deck_templates }}"
+
+- name: Execute deck
+  ansible.builtin.shell: |
+    /usr/local/bin/deck sync -s /tmp/deck_files/test_global_plugins.yml --kong-addr {{ kong_admin_endpoint }} --headers 'Kong-Admin-Token: {{ kong_admin_token }}'
