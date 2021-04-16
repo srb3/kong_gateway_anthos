@@ -84,11 +84,12 @@ module "tls_cluster" {
 }
 
 module "tls_services" {
-  source         = "./modules/tls"
-  ca_common_name = var.tls_services.ca_common_name
-  namespaces     = var.tls_services.namespaces
-  namespace_map  = local.namespace_map
-  certificates   = var.tls_services.certificates
+  source                = "./modules/tls"
+  ca_common_name        = var.tls_services.ca_common_name
+  validity_period_hours = var.validity_period_hours
+  namespaces            = var.tls_services.namespaces
+  namespace_map         = local.namespace_map
+  certificates          = var.tls_services.certificates
 }
 
 module "tls_ingress" {
