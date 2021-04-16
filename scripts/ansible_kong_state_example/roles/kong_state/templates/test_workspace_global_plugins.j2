@@ -1,0 +1,63 @@
+_format_version: "1.1"
+_workspace: test
+plugins:
+- name: correlation-id
+  config:
+    echo_downstream: true
+    generator: uuid#counter
+    header_name: Kong-Request-ID
+  enabled: true
+  protocols:
+  - grpc
+  - grpcs
+  - http
+  - https
+- name: http-log
+  config:
+    content_type: application/json
+    flush_timeout: 2
+    headers: null
+    http_endpoint: http://10.0.0.132:8089
+    keepalive: 1000
+    method: POST
+    queue_size: 1
+    retry_count: 15
+    timeout: 1000
+  enabled: true
+  protocols:
+  - grpc
+  - grpcs
+  - http
+  - https
+- name: prometheus
+  enabled: true
+  protocols:
+  - grpc
+  - grpcs
+  - http
+  - https
+- name: rate-limiting
+  config:
+    day: null
+    fault_tolerant: true
+    header_name: null
+    hide_client_headers: false
+    hour: null
+    limit_by: consumer
+    minute: 200
+    month: null
+    path: null
+    policy: local
+    redis_database: 0
+    redis_host: null
+    redis_password: null
+    redis_port: 6379
+    redis_timeout: 2000
+    second: null
+    year: null
+  enabled: true
+  protocols:
+  - grpc
+  - grpcs
+  - http
+  - https

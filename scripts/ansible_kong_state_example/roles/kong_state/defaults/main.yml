@@ -1,0 +1,34 @@
+kong_admin_endpoint: https://admin-api.kongcx.ninja
+kong_admin_token: password
+user_hash: []
+
+# user_hash example
+#user_hash: []
+#  - username: lw
+#    email: lw@mail.com
+#    custom_id: lw@mail.com
+#    password: password123!
+#    workspace: prod
+#  - username: fj
+#    email: fj@mail.com
+#    custom_id: fj@mail.com
+#    password: password123!
+#    workspace: prod
+#  - username: jdoe@mail.com
+#    email: jdoe@mail.com
+#    custom_id: jdoe@mail.com
+#    password: password123!
+#    workspace: default
+workspace_list: []
+
+# workspace list example
+#workspace_list:
+#  - dev
+#  - test
+#  - prod
+
+deck_templates:
+  - src: test_workspace_global_plugins.j2
+    dest: /tmp/deck_files/test_global_plugins.yml
+  - src: test_workspace_api_spec_plugins.j2
+    dest: /tmp/deck_files/test_api_spec.yml 
