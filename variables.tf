@@ -1,7 +1,7 @@
 variable "kong_image" {
   description = "The kong container image file to use"
   type        = string
-  default     = "kong-docker-kong-enterprise-edition-docker.bintray.io/kong-enterprise-edition:2.3.2.0-alpine"
+  default     = "kong/kong-gateway:2.3.2.0-alpine"
 }
 
 variable "kube_config_file" {
@@ -463,4 +463,10 @@ variable "portal_admin_cname" {
   description = "The name to give the kong portal admin cname record"
   type        = string
   default     = ""
+}
+
+variable "enable_autoscaler" {
+  description = "If set to true then horizontal pod auto scalling is enabled"
+  type        = bool
+  default     = false
 }

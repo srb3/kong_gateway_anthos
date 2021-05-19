@@ -12,53 +12,53 @@ fi
 
 echo -e "\nCreate workspace $1 at AdminEndpoint $2 with 'Kong-Admin-Token: $3'\n"
 
-curl -X POST $2/workspaces -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"name\": \"$1\"}"
+curl -k -X POST $2/workspaces -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"name\": \"$1\"}"
 
 echo -e "\nCreate default roles:\n"
 
-curl -X POST $2/$1/rbac/roles -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"name\":\"read-only\",\"comment\":\"Read access to all endpoints in the workspace excpet plugins\"}"
+curl -k -X POST $2/$1/rbac/roles -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"name\":\"read-only\",\"comment\":\"Read access to all endpoints in the workspace excpet plugins\"}"
 
-curl -X POST $2/$1/rbac/roles -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"name\":\"admin\",\"comment\":\"Full access to all endpoints in the workspace—except delete for global plugins\"}"
+curl -k -X POST $2/$1/rbac/roles -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"name\":\"admin\",\"comment\":\"Full access to all endpoints in the workspace—except delete for global plugins\"}"
 
 echo -e "\nCreate endpoints for workspace-read-only role:\n"
 
-curl -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"*\",\"negative\":false}"
+curl -k -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"*\",\"negative\":false}"
 
-curl -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"consumers/*/plugins\",\"negative\":true}"
+curl -k -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"consumers/*/plugins\",\"negative\":true}"
 
-curl -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"consumers/*/plugins/*\",\"negative\":true}"
+curl -k -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"consumers/*/plugins/*\",\"negative\":true}"
 
-curl -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"plugins\",\"negative\":true}"
+curl -k -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"plugins\",\"negative\":true}"
 
-curl -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"plugins/*\",\"negative\":true}"
+curl -k -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"plugins/*\",\"negative\":true}"
 
-curl -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"routes/*/plugins\",\"negative\":true}"
+curl -k -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"routes/*/plugins\",\"negative\":true}"
 
-curl -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"routes/*/plugins/*\",\"negative\":true}"
+curl -k -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"routes/*/plugins/*\",\"negative\":true}"
 
-curl -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"services/*/plugins\",\"negative\":true}"
+curl -k -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"services/*/plugins\",\"negative\":true}"
 
-curl -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"services/*/plugins/*\",\"negative\":true}"
+curl -k -X POST $2/$1/rbac/roles/read-only/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"read\",\"endpoint\":\"services/*/plugins/*\",\"negative\":true}"
 
 echo "\nCreate endpoints for workspace-admin role:\n"
 
-curl -X POST $2/$1/rbac/roles/admin/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"delete,create,update,read\",\"endpoint\":\"*\",\"negative\":false}"
+curl -k -X POST $2/$1/rbac/roles/admin/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"delete,create,update,read\",\"endpoint\":\"*\",\"negative\":false}"
 
-curl -X POST $2/$1/rbac/roles/admin/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"delete\",\"endpoint\":\"plugins\",\"negative\":true}"
+curl -k -X POST $2/$1/rbac/roles/admin/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"delete\",\"endpoint\":\"plugins\",\"negative\":true}"
 
-curl -X POST $2/$1/rbac/roles/admin/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"delete\",\"endpoint\":\"plugins/*\",\"negative\":true}"
+curl -k -X POST $2/$1/rbac/roles/admin/endpoints  -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"workspace\":\"$1\",\"actions\":\"delete\",\"endpoint\":\"plugins/*\",\"negative\":true}"
 
 # Get workspace ID
-workspace_id=$(curl -v $2/workspaces/$1 -H "content-type: application/json" -H "Kong-Admin-Token: $3" | jq '.id')
+workspace_id=$(curl -k -v $2/workspaces/$1 -H "content-type: application/json" -H "Kong-Admin-Token: $3" | jq '.id')
 
 # Get role ID's
-admin_role_id=$(curl -v $2/$1/rbac/roles/admin -H "content-type: application/json" -H "Kong-Admin-Token: $3" | jq '.id')
-readonly_role_id=$(curl -v $2/$1/rbac/roles/read-only -H "content-type: application/json" -H "Kong-Admin-Token: $3" | jq '.id')
+admin_role_id=$(curl -k -v $2/$1/rbac/roles/admin -H "content-type: application/json" -H "Kong-Admin-Token: $3" | jq '.id')
+readonly_role_id=$(curl -k -v $2/$1/rbac/roles/read-only -H "content-type: application/json" -H "Kong-Admin-Token: $3" | jq '.id')
 
 # Create groups
-curl -X POST $2/$1/groups -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"name\":\"$1-admin-group\",\"comment\":\"Full access to all endpoints in the workspace—except delete for global plugins\"}"
-curl -X POST $2/$1/groups -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"name\":\"$1-read-only-group\",\"comment\":\"Read access to all endpoints in the workspace excpet plugins\"}"
+curl -k -X POST $2/$1/groups -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"name\":\"$1-admin-group\",\"comment\":\"Full access to all endpoints in the workspace—except delete for global plugins\"}"
+curl -k -X POST $2/$1/groups -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"name\":\"$1-read-only-group\",\"comment\":\"Read access to all endpoints in the workspace excpet plugins\"}"
 
 # Add roles to groups 
-curl -X POST $2/$1/groups/$1-admin-group/roles -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"rbac_role_id\":$admin_role_id,\"workspace_id\":$workspace_id}"
-curl -X POST $2/$1/groups/$1-read-only-group/roles -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"rbac_role_id\":$readonly_role_id,\"workspace_id\":$workspace_id}"
+curl -k -X POST $2/$1/groups/$1-admin-group/roles -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"rbac_role_id\":$admin_role_id,\"workspace_id\":$workspace_id}"
+curl -k -X POST $2/$1/groups/$1-read-only-group/roles -H "content-type: application/json" -H "Kong-Admin-Token: $3" -d "{\"rbac_role_id\":$readonly_role_id,\"workspace_id\":$workspace_id}"
