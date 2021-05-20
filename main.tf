@@ -105,7 +105,7 @@ module "dns_name_proxy" {
   source        = "./modules/route53"
   zone_id       = var.route53_zone_id
   cname_name    = var.proxy_cname
-  cname_targets = [module.kong-dp.ingress.data-plane-ingress.endpoint]
+  cname_targets = [replace(module.kong-dp.proxy_ssl_endpoint, local.rp, "")]
 }
 
 module "dns_name_devportal" {
@@ -113,7 +113,7 @@ module "dns_name_devportal" {
   source        = "./modules/route53"
   zone_id       = var.route53_zone_id
   cname_name    = var.portal_gui_cname
-  cname_targets = [module.kong-cp.ingress.control-plane-ingress.endpoint]
+  cname_targets = [replace(module.kong-cp.portal_gui_ssl_endpoint, local.rp, "")]
 }
 
 module "dns_name_manager" {
@@ -158,6 +158,7 @@ locals {
   services = concat(module.kong-cp.services, module.kong-dp.services)
 
   proxy        = module.kong-dp.proxy_endpoint
+  proxy_ssl    = module.kong-dp.proxy_ssl_endpoint
   admin        = module.kong-cp.admin_endpoint
   manager      = module.kong-cp.manager_endpoint
   portal_admin = module.kong-cp.portal_admin_endpoint
@@ -205,7 +206,6 @@ locals {
       secret_name = p
     }
   ]
-
 
   # Control plane configuration 
 
@@ -266,7 +266,7 @@ locals {
 # Use the Kong module to create a cp
 module "kong-cp" {
   source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.11"
+  version                = "0.0.14"
   deployment_name        = local.kong_cp_deployment_name
   namespace              = local.cp_ns
   deployment_replicas    = var.control_plane_replicas
@@ -278,6 +278,7 @@ module "kong-cp" {
   volume_secrets         = local.kong_cp_volume_secrets
   services               = var.cp_svcs
   load_balancer_services = var.cp_lb_svcs
+  enable_autoscaler      = var.enable_autoscaler
   deployment_annotations = {
     "ad.datadoghq.com/${local.kong_cp_deployment_name}.check_names"  = "[\"kong\"]"
     "ad.datadoghq.com/${local.kong_cp_deployment_name}.init_configs" = "[{}]"
@@ -291,7 +292,7 @@ module "kong-cp" {
 ## Use the Kong module to create a dp
 module "kong-dp" {
   source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.11"
+  version                = "0.0.14"
   deployment_name        = local.kong_dp_deployment_name
   namespace              = local.dp_ns
   deployment_replicas    = var.data_plane_replicas
@@ -303,6 +304,7 @@ module "kong-dp" {
   volume_secrets         = local.kong_dp_volume_secrets
   services               = var.dp_svcs
   load_balancer_services = var.dp_lb_svcs
+  enable_autoscaler      = var.enable_autoscaler
   deployment_annotations = {
     "ad.datadoghq.com/${local.kong_dp_deployment_name}.check_names"  = "[\"kong\"]"
     "ad.datadoghq.com/${local.kong_dp_deployment_name}.init_configs" = "[{}]"

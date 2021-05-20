@@ -33,4 +33,4 @@
 
 - name: Execute deck
   ansible.builtin.shell: |
-    /usr/local/bin/deck sync -s /tmp/deck_files/test_global_plugins.yml --kong-addr {{ kong_admin_endpoint }} --headers 'Kong-Admin-Token: {{ kong_admin_token }}'
+    /usr/local/bin/deck sync -s /tmp/deck_files/test_global_plugins.yml --tls-skip-verify --kong-addr {{ kong_admin_endpoint }} --headers 'Kong-Admin-Token: {{ kong_admin_token }}'
