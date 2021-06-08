@@ -25,6 +25,7 @@ locals {
 }
 
 resource "kubernetes_secret" "this-ca-secret-cp" {
+  count = var.ca_common_name != null ? 1 : 0
   metadata {
     name      = var.ca_common_name
     namespace = var.namespace_map["control_plane"]
@@ -39,7 +40,7 @@ resource "kubernetes_secret" "this-ca-secret-cp" {
 }
 
 resource "kubernetes_secret" "this-ca-secret-dp" {
-  count = local.ons ? 0 : 1
+  count = var.ca_common_name != null ? local.ons ? 0 : 1 : 0
   metadata {
     name      = var.ca_common_name
     namespace = var.namespace_map["data_plane"]
