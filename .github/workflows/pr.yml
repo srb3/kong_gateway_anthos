@@ -66,7 +66,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       - name: wait control plane
-        run: ws=$(terraform workspace show); while [[ $(kubectl -n kong-hybrid-cp-${ws} get pods -l name=kong-hybrid-cp-${ws} -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do echo "waiting for pod" && sleep 1; done 
+        run: ws=$(terraform workspace show); while [[ $(kubectl -n kong-hybrid-cp-${ws} get pods -l name=kong-hybrid-cp-${ws}-cp -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True" ]]; do echo "waiting for pod" && sleep 1; done
       - name: Verify
         run: kitchen verify default
       - name: Kitchen Destroy

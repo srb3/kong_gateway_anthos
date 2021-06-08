@@ -1,8 +1,8 @@
 resource "kubernetes_secret" "kong_enterprise_docker_cfg-cp" {
-  for_each = var.namespaces
+  for_each = local.tmp_namespace_map
   metadata {
     name      = var.image_pull_secret_name
-    namespace = kubernetes_namespace.kong[each.key].metadata[0].name
+    namespace = each.value
   }
 
   data = {
@@ -13,10 +13,10 @@ resource "kubernetes_secret" "kong_enterprise_docker_cfg-cp" {
 }
 
 resource "kubernetes_secret" "license-cp" {
-  for_each = var.namespaces
+  for_each = local.tmp_namespace_map
   metadata {
     name      = var.kong_license_secret_name
-    namespace = kubernetes_namespace.kong[each.key].metadata[0].name
+    namespace = each.value
   }
 
   type = "Opaque"
@@ -28,7 +28,7 @@ resource "kubernetes_secret" "license-cp" {
 resource "kubernetes_secret" "kong-enterprise-superuser-password" {
   metadata {
     name      = var.kong_superuser_secret_name
-    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
+    namespace = local.cp_ns
   }
 
   type = "Opaque"
@@ -44,7 +44,7 @@ variable "admin_gui_session_conf_backup" {
 resource "kubernetes_secret" "kong-admin-gui-session-conf" {
   metadata {
     name      = var.kong_admin_gui_session_conf_secret_name
-    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
+    namespace = local.cp_ns
   }
 
   type = "Opaque"
@@ -60,7 +60,7 @@ variable "portal_session_conf_backup" {
 resource "kubernetes_secret" "kong-portal-session-conf" {
   metadata {
     name      = var.kong_portal_session_conf_secret_name
-    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
+    namespace = local.cp_ns
   }
 
   type = "Opaque"
@@ -72,7 +72,7 @@ resource "kubernetes_secret" "kong-portal-session-conf" {
 resource "kubernetes_secret" "kong-admin-gui-auth-conf" {
   metadata {
     name      = var.kong_admin_gui_auth_conf_secret_name
-    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
+    namespace = local.cp_ns
   }
 
   type = "Opaque"
@@ -84,7 +84,7 @@ resource "kubernetes_secret" "kong-admin-gui-auth-conf" {
 resource "kubernetes_secret" "kong-portal-auth-conf" {
   metadata {
     name      = var.kong_portal_auth_conf_secret_name
-    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
+    namespace = local.cp_ns
   }
 
   type = "Opaque"
@@ -96,7 +96,7 @@ resource "kubernetes_secret" "kong-portal-auth-conf" {
 resource "kubernetes_secret" "kong-database-password" {
   metadata {
     name      = var.kong_database_secret_name
-    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
+    namespace = local.cp_ns
   }
 
   type = "Opaque"
@@ -108,7 +108,7 @@ resource "kubernetes_secret" "kong-database-password" {
 resource "kubernetes_secret" "datadog-api-key" {
   metadata {
     name      = var.datadog_api_key_secret_name
-    namespace = kubernetes_namespace.kong["control_plane"].metadata[0].name
+    namespace = local.cp_ns
   }
 
   type = "Opaque"

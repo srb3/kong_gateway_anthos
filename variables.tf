@@ -470,3 +470,9 @@ variable "enable_autoscaler" {
   type        = bool
   default     = false
 }
+
+variable "existing_namespaces" {
+  description = "If you plan to use a existing namespaces then set this value to true"
+  type        = bool
+  default     = false
+}

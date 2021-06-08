@@ -19,11 +19,31 @@ resource "tls_self_signed_cert" "this-ca" {
 
 }
 
-resource "kubernetes_secret" "this-ca-secret" {
-  count = length(var.namespaces)
+locals {
+  ons = var.namespace_map["control_plane"] == var.namespace_map["data_plane"]
+
+}
+
+resource "kubernetes_secret" "this-ca-secret-cp" {
+  count = var.ca_common_name != null ? 1 : 0
   metadata {
     name      = var.ca_common_name
-    namespace = var.namespace_map[var.namespaces[count.index]]
+    namespace = var.namespace_map["control_plane"]
+  }
+
+  data = {
+    "tls.crt" = tls_self_signed_cert.this-ca.cert_pem
+    "tls.key" = tls_private_key.this-ca.private_key_pem
+  }
+
+  type = "kubernetes.io/tls"
+}
+
+resource "kubernetes_secret" "this-ca-secret-dp" {
+  count = var.ca_common_name != null ? local.ons ? 0 : 1 : 0
+  metadata {
+    name      = var.ca_common_name
+    namespace = var.namespace_map["data_plane"]
   }
 
   data = {
@@ -85,14 +105,14 @@ locals {
   }
 
   # create a list of certificate names concated with namespace
-  cert_ns_name = flatten([for k, v in var.certificates :
+  cert_ns_name = distinct(flatten([for k, v in var.certificates :
     [
       for x in v.namespaces :
       [
         "${var.namespace_map[x]},${k}"
       ]
     ]
-  ])
+  ]))
 
 
   # collect the information of secretes mapped to namespace
