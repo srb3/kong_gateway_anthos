@@ -13,10 +13,29 @@ provider "aws" {
   shared_credentials_file = var.aws_creds_file
 }
 
+data "kubernetes_namespace" "control_plane" {
+  count = var.existing_namespaces ? 1 : 0
+  metadata {
+    name = var.namespaces["control_plane"]
+  }
+}
+
+data "kubernetes_namespace" "data_plane" {
+  count = var.existing_namespaces ? 1 : 0
+  metadata {
+    name = var.namespaces["data_plane"]
+  }
+}
+
 # Create two namespaces one for cp and pg and
 # one for dp
+locals {
+  ons            = var.namespaces["control_plane"] == var.namespaces["data_plane"]
+  tmp_namespaces = tomap(var.existing_namespaces ? {} : local.ons ? { "control_plane" = var.namespaces["control_plane"] } : { for k, v in var.namespaces : k => v })
+}
+
 resource "kubernetes_namespace" "kong" {
-  for_each = var.namespaces
+  for_each = local.tmp_namespaces
   metadata {
     name = terraform.workspace == "default" ? each.value : "${each.value}-${terraform.workspace}"
   }
@@ -141,12 +160,19 @@ module "dns_name_portal_admin" {
 }
 
 locals {
-  cp_ns      = kubernetes_namespace.kong["control_plane"].metadata[0].name
-  dp_ns      = kubernetes_namespace.kong["data_plane"].metadata[0].name
+
+  cp_ns = var.existing_namespaces ? data.kubernetes_namespace.control_plane.0.metadata.0.name : kubernetes_namespace.kong["control_plane"].metadata[0].name
+  dp_ns = var.existing_namespaces ? data.kubernetes_namespace.data_plane.0.metadata.0.name : local.ons ? kubernetes_namespace.kong["control_plane"].metadata[0].name : kubernetes_namespace.kong["data_plane"].metadata[0].name
+
   namespaces = [local.cp_ns, local.dp_ns]
+
+  # this map is needed for secrets creation, so we don't try to store the secrets in the same namesapce twice
+  tmp_namespace_map = tomap(local.ons ? { "control_plane" = local.cp_ns } : { "control_plane" = local.cp_ns, "data_plane" = local.dp_ns })
+
+  # this map is needed for tls certificates creation
   namespace_map = {
-    "control_plane" = kubernetes_namespace.kong["control_plane"].metadata[0].name
-    "data_plane"    = kubernetes_namespace.kong["data_plane"].metadata[0].name
+    "control_plane" = local.cp_ns
+    "data_plane"    = local.dp_ns
   }
 
   rp = "/:[0-9]*/"
@@ -167,8 +193,8 @@ locals {
   cluster   = module.kong-cp.cluster_endpoint
   telemetry = module.kong-cp.telemetry_endpoint
 
-  kong_cp_deployment_name = local.cp_ns
-  kong_dp_deployment_name = local.dp_ns
+  kong_cp_deployment_name = "${local.cp_ns}-cp"
+  kong_dp_deployment_name = "${local.dp_ns}-dp"
   kong_image              = var.kong_image
 
   kong_image_pull_secrets = [
@@ -257,7 +283,7 @@ locals {
 
   kong_dp_merge_config = {
     "KONG_CLUSTER_CONTROL_PLANE"      = "kong-cluster.${local.namespace_map["control_plane"]}.svc.cluster.local:8005",
-    "KONG_CLUSTER_TELEMETRY_ENDPOINT" = "kong-cluster.${local.namespace_map["control_plane"]}.svc.cluster.local:8006"
+    "KONG_CLUSTER_TELEMETRY_ENDPOINT" = "kong-telemetry.${local.namespace_map["control_plane"]}.svc.cluster.local:8006"
   }
 
   kong_dp_config = merge(var.kong_data_plane_config, local.kong_dp_merge_config)
