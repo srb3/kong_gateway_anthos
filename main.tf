@@ -175,13 +175,44 @@ locals {
     "data_plane"    = local.dp_ns
   }
 
+  ########## Security group injection ############
+  # Create a local variable of the hash item we want to inject into
+  # the annotation hash of each load balancer service
+  sg_item = {
+    "service.beta.kubernetes.io/aws-load-balancer-extra-security-groups" = var.sg_passthrough
+  }
+
+  # loop through each of the control plane load balancer services
+  # keep everything the same but merge sg_item with the other annotations
+  cp_lb_svcs_merged_annotations = {
+    for k, v in var.cp_lb_svcs :
+    k => {
+      load_balancer_source_ranges = v.load_balancer_source_ranges
+      annotations                 = merge(v.annotations, local.sg_item)
+      external_traffic_policy     = v.external_traffic_policy
+      health_check_node_port      = v.health_check_node_port
+      ports                       = v.ports
+    }
+  }
+
+  # loop through each of the data plane load balancer services
+  # keep everything the same but merge sg_item with the other annotations
+  dp_lb_svcs_merged_annotations = {
+    for k, v in var.dp_lb_svcs :
+    k => {
+      load_balancer_source_ranges = v.load_balancer_source_ranges
+      annotations                 = merge(v.annotations, local.sg_item)
+      external_traffic_policy     = v.external_traffic_policy
+      health_check_node_port      = v.health_check_node_port
+      ports                       = v.ports
+    }
+  }
+
   rp = "/:[0-9]*/"
   dp_mounts = concat(module.tls_cluster.namespace_name_map["data_plane"],
   module.tls_services.namespace_name_map["data_plane"])
   cp_mounts = concat(module.tls_cluster.namespace_name_map["control_plane"],
   module.tls_services.namespace_name_map["control_plane"])
-
-  services = concat(module.kong-cp.services, module.kong-dp.services)
 
   proxy        = module.kong-dp.proxy_endpoint
   proxy_ssl    = module.kong-dp.proxy_ssl_endpoint
@@ -193,8 +224,8 @@ locals {
   cluster   = module.kong-cp.cluster_endpoint
   telemetry = module.kong-cp.telemetry_endpoint
 
-  kong_cp_deployment_name = "${local.cp_ns}-cp"
-  kong_dp_deployment_name = "${local.dp_ns}-dp"
+  kong_cp_deployment_name = var.control_plane_deployment_name
+  kong_dp_deployment_name = var.data_plane_deployment_name
   kong_image              = var.kong_image
 
   kong_image_pull_secrets = [
@@ -303,7 +334,7 @@ module "kong-cp" {
   volume_mounts          = local.kong_cp_volume_mounts
   volume_secrets         = local.kong_cp_volume_secrets
   services               = var.cp_svcs
-  load_balancer_services = var.cp_lb_svcs
+  load_balancer_services = local.cp_lb_svcs_merged_annotations
   enable_autoscaler      = var.enable_autoscaler
   deployment_annotations = {
     "ad.datadoghq.com/${local.kong_cp_deployment_name}.check_names"  = "[\"kong\"]"
@@ -329,7 +360,7 @@ module "kong-dp" {
   volume_mounts          = local.kong_dp_volume_mounts
   volume_secrets         = local.kong_dp_volume_secrets
   services               = var.dp_svcs
-  load_balancer_services = var.dp_lb_svcs
+  load_balancer_services = local.dp_lb_svcs_merged_annotations
   enable_autoscaler      = var.enable_autoscaler
   deployment_annotations = {
     "ad.datadoghq.com/${local.kong_dp_deployment_name}.check_names"  = "[\"kong\"]"

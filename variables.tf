@@ -476,3 +476,21 @@ variable "existing_namespaces" {
   type        = bool
   default     = false
 }
+
+variable "sg_passthrough" {
+  description = "If you have extra security groups you would like to pass through to the load balancer services, you can add them as a comma seperated list"
+  type        = string
+  default     = null
+}
+
+variable "control_plane_deployment_name" {
+  description = "The name to give our control plane deployment"
+  type        = string
+  default     = "control-plane"
+}
+
+variable "data_plane_deployment_name" {
+  description = "The name to give our data plane deployment"
+  type        = string
+  default     = "data-plane"
+}
