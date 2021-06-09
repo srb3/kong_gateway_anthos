@@ -34,6 +34,12 @@ variable "kong_data_plane_config" {
   default     = {}
 }
 
+variable "kong_data_plane_ext_config" {
+  description = "A map of strings used to define the extra data plane configuration"
+  type        = map(string)
+  default     = {}
+}
+
 variable "super_admin_password" {
   description = "The super user password to set"
   type        = string
@@ -146,7 +152,52 @@ variable "dp_svcs" {
   }
 }
 
+variable "dp_ext_svcs" {
+  description = "A map of objects that are used to create clusterIP services to expose Kong endpoints"
+  type = map(object({
+    annotations = map(string)
+    ports = map(object({
+      port        = number
+      protocol    = string
+      target_port = number
+    }))
+  }))
+  default = {
+    "kong-proxy-ext" = {
+      annotations = {}
+      ports = {
+        "kong-proxy" = {
+          port        = 8000
+          protocol    = "TCP"
+          target_port = 8000
+        },
+        "kong-proxy-ssl" = {
+          port        = 8443
+          protocol    = "TCP"
+          target_port = 8443
+        }
+      }
+    }
+  }
+}
+
 variable "dp_lb_svcs" {
+  description = "A map of objects that are used to create LoadBalancer services to expose Kong endpoints to outside of the cluster"
+  type = map(object({
+    annotations                 = map(string)
+    load_balancer_source_ranges = list(string)
+    external_traffic_policy     = string
+    health_check_node_port      = number
+    ports = map(object({
+      port        = number
+      protocol    = string
+      target_port = number
+    }))
+  }))
+  default = {}
+}
+
+variable "dp_ext_lb_svcs" {
   description = "A map of objects that are used to create LoadBalancer services to expose Kong endpoints to outside of the cluster"
   type = map(object({
     annotations                 = map(string)
@@ -198,6 +249,25 @@ variable "cp_ingress" {
 }
 
 variable "dp_ingress" {
+  description = "A map that represents kubernetes ingress resources"
+  type = map(object({
+    annotations = map(string)
+    tls = object({
+      hosts       = list(string)
+      secret_name = string
+    })
+    rules = map(object({
+      host = string
+      paths = map(object({
+        service_name = string
+        service_port = number
+      }))
+    }))
+  }))
+  default = {}
+}
+
+variable "dp_ext_ingress" {
   description = "A map that represents kubernetes ingress resources"
   type = map(object({
     annotations = map(string)
@@ -313,6 +383,12 @@ variable "control_plane_replicas" {
 
 variable "data_plane_replicas" {
   description = "The number of data plane replicas to create"
+  type        = number
+  default     = 1
+}
+
+variable "data_plane_ext_replicas" {
+  description = "The number of extra data plane replicas to create"
   type        = number
   default     = 1
 }
@@ -441,6 +517,12 @@ variable "proxy_cname" {
   default     = ""
 }
 
+variable "proxy_ext_cname" {
+  description = "The name to give the extra data plane proxy cname record"
+  type        = string
+  default     = ""
+}
+
 variable "portal_gui_cname" {
   description = "The name to give the kong portal cname record"
   type        = string
@@ -493,4 +575,10 @@ variable "data_plane_deployment_name" {
   description = "The name to give our data plane deployment"
   type        = string
   default     = "data-plane"
+}
+
+variable "data_plane_ext_deployment_name" {
+  description = "The name to give our data plane deployment (extra)"
+  type        = string
+  default     = "data-plane-ext"
 }
