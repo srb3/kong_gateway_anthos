@@ -19,6 +19,10 @@ output "kong-proxy-endpoint" {
   value = local.proxy
 }
 
+output "kong-proxy-ext-endpoint" {
+  value = local.proxy_ext
+}
+
 output "kong-super-admin-token" {
   value = var.super_admin_password
 }

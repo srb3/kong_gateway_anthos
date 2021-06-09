@@ -21,7 +21,7 @@ resource "tls_self_signed_cert" "this-ca" {
 
 locals {
   ons = var.namespace_map["control_plane"] == var.namespace_map["data_plane"]
-
+  nts = lookup(var.namespace_map, "data_plane_ext", null) != null ? var.namespace_map["data_plane_ext"] != var.namespace_map["data_plane"] ? var.namespace_map["data_plane_ext"] != var.namespace_map["control_plane"] ? true : false : false : false
 }
 
 resource "kubernetes_secret" "this-ca-secret-cp" {
@@ -44,6 +44,21 @@ resource "kubernetes_secret" "this-ca-secret-dp" {
   metadata {
     name      = var.ca_common_name
     namespace = var.namespace_map["data_plane"]
+  }
+
+  data = {
+    "tls.crt" = tls_self_signed_cert.this-ca.cert_pem
+    "tls.key" = tls_private_key.this-ca.private_key_pem
+  }
+
+  type = "kubernetes.io/tls"
+}
+
+resource "kubernetes_secret" "this-ca-secret-dp-ext" {
+  count = var.ca_common_name != null ? !local.ons ? local.nts ? 1 : 0 : 0 : 0
+  metadata {
+    name      = var.ca_common_name
+    namespace = var.namespace_map["data_plane_ext"]
   }
 
   data = {
@@ -107,10 +122,7 @@ locals {
   # create a list of certificate names concated with namespace
   cert_ns_name = distinct(flatten([for k, v in var.certificates :
     [
-      for x in v.namespaces :
-      [
-        "${var.namespace_map[x]},${k}"
-      ]
+      for x in v.namespaces : ["${var.namespace_map[x]},${k}"] if var.namespace_map[x] != null
     ]
   ]))
 
