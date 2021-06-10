@@ -1,3 +1,5 @@
+########### Provider Setup #######################
+
 provider "kubernetes" {
   config_path = var.kube_config_file
 }
@@ -13,26 +15,7 @@ provider "aws" {
   shared_credentials_file = var.aws_creds_file
 }
 
-data "kubernetes_namespace" "control_plane" {
-  count = var.existing_namespaces ? 1 : 0
-  metadata {
-    name = var.namespaces["control_plane"]
-  }
-}
-
-data "kubernetes_namespace" "data_plane" {
-  count = var.existing_namespaces ? 1 : 0
-  metadata {
-    name = var.namespaces["data_plane"]
-  }
-}
-
-data "kubernetes_namespace" "data_plane_ext" {
-  count = var.existing_namespaces ? local.extra_ns ? 1 : 0 : 0
-  metadata {
-    name = var.namespaces["data_plane_ext"]
-  }
-}
+########### Namespace Logic ######################
 
 # For namespaces we need to cater for a few scenarios
 # Creating namespaces
@@ -47,26 +30,142 @@ data "kubernetes_namespace" "data_plane_ext" {
 #  * control plane
 #  * data plane
 #  * extra data plane
-locals {
-  # check if we are creating only one namespace, we use this variable as a short cut later
-  one_ns = length(distinct(compact(values(var.namespaces)))) == 1
-  # work out if we are creating the extra data plane. If there is a value for data_plane_ext in the namespaces map then we will create it
-  extra_dp = lookup(var.namespaces, "data_plane_ext", null) != null
-  # does the extra data plane have it's own namespace, work out if we need to create a namespace for the extra data plane
-  extra_ns = local.extra_dp ? var.namespaces["data_plane_ext"] != var.namespaces["data_plane"] ? var.namespaces["data_plane_ext"] != var.namespaces["control_plane"] ? true : false : false : false
-  # create a list of unique namespaces, we use unique list of namespaces to make sure we only create the namespaces we need, and don't try to create the same one twice if the instance types share a namespace
-  unique_ns = distinct(compact(values(var.namespaces)))
-  # either use existing namespaces or make a map to create new ones, if this map is empty then we don't create any namespaces, otherwise we use the unique_ns local var to work out what namespaces to create
-  tmp_namespaces = var.existing_namespaces ? {} : local.one_ns ? { "control_plane" = local.unique_ns[0] } : length(local.unique_ns) == 2 ? { "control_plane" = local.unique_ns[0], "data_plane" = local.unique_ns[1] } : { "control_plane" = local.unique_ns[0], "data_plane" = local.unique_ns[1], "data_plane_ext" = local.unique_ns[2] }
 
+# Create three data sources if existing_namespaces is set to true
+data "kubernetes_namespace" "control_plane" {
+  count = var.existing_namespaces ? 1 : 0
+  metadata {
+    name = var.namespaces["control_plane"]
+  }
 }
 
+data "kubernetes_namespace" "data_plane" {
+  count = var.existing_namespaces ? 1 : 0
+  metadata {
+    name = var.namespaces["data_plane"]
+  }
+}
+
+# The third data source is optional and only used if we are enabling the
+# the extra data plane
+data "kubernetes_namespace" "data_plane_ext" {
+  count = var.existing_namespaces ? local.extra_ns ? 1 : 0 : 0
+  metadata {
+    name = var.namespaces["data_plane_ext"]
+  }
+}
+
+locals {
+  # check if we are creating only one namespace, we use this variable as a short
+  # cut later
+  one_ns = length(distinct(compact(values(var.namespaces)))) == 1
+
+  # work out if we are creating the extra data plane. If there is a value for
+  # data_plane_ext in the namespaces map then we will create it,
+  # or look it up if we existing_namespaces is set to true
+  extra_dp = lookup(var.namespaces, "data_plane_ext", null) != null
+
+  # does the extra data plane have it's own namespace, work out if we need to
+  # create a namespace for the extra data plane
+  extra_ns = (
+    local.extra_dp ?
+    var.namespaces["data_plane_ext"] != var.namespaces["data_plane"] ?
+    var.namespaces["data_plane_ext"] != var.namespaces["control_plane"] ?
+    true :
+    false :
+    false :
+    false
+  )
+
+  # create a list of unique namespaces, we use unique list of namespaces to make
+  # sure we only create the namespaces we need, and don't try to create the same 
+  # one twice if the instance types share a namespace
+  unique_ns = distinct(compact(values(var.namespaces)))
+
+  # either use existing namespaces or make a map to create new ones, if this
+  # map is empty (which is the case if we want to use existing namespaces)
+  # then we don't create any namespaces, otherwise we use the unique_ns local
+  # var to work out what namespaces to create. The unique_ns list contains
+  # a unique list of namesapces.
+  namespaces_to_create = (
+    var.existing_namespaces ?
+    {} :
+    local.one_ns ?
+    {
+      "control_plane" = local.unique_ns[0]
+    } :
+    length(local.unique_ns) == 2 ?
+    {
+      "control_plane" = local.unique_ns[0],
+      "data_plane"    = local.unique_ns[1]
+    } :
+    {
+      "control_plane"  = local.unique_ns[0],
+      "data_plane"     = local.unique_ns[1],
+      "data_plane_ext" = local.unique_ns[2]
+    }
+  )
+
+  # Place the namespaces into their local variables, namespaces can be derived
+  # from existing or created namespaces, and in the case of the extra data plane
+  # namespaces may not exist at all
+  cp_ns = (
+    var.existing_namespaces ?
+    data.kubernetes_namespace.control_plane.0.metadata.0.name :
+    kubernetes_namespace.kong["control_plane"].metadata[0].name
+  )
+  dp_ns = (
+    var.existing_namespaces ?
+    data.kubernetes_namespace.data_plane.0.metadata.0.name :
+    local.one_ns ?
+    kubernetes_namespace.kong["control_plane"].metadata[0].name :
+    kubernetes_namespace.kong["data_plane"].metadata[0].name
+  )
+  dp_ext_ns = (
+    local.extra_ns ?
+    var.existing_namespaces ?
+    data.kubernetes_namespace.data_plane_ext.0.metadata.0.name :
+    local.one_ns ?
+    kubernetes_namespace.kong["control_plane"].metadata[0].name :
+    kubernetes_namespace.kong["data_plane_ext"].metadata[0].name :
+    local.extra_dp ?
+    var.namespaces["data_plane_ext"] :
+    null
+  )
+
+  # this map is needed for secrets creation, so we don't try to store the secrets in the same namespace twice
+  tmp_namespace_map = (
+    local.one_ns ?
+    { "control_plane" = local.cp_ns } :
+    local.extra_ns ?
+    {
+      "control_plane"  = local.cp_ns,
+      "data_plane"     = local.dp_ns,
+      "data_plane_ext" = local.dp_ext_ns
+    } :
+    {
+      "control_plane" = local.cp_ns,
+      "data_plane"    = local.dp_ns
+    }
+  )
+
+  # this map is needed for tls certificates creation
+  certificate_namespace_map = {
+    "control_plane"  = local.cp_ns,
+    "data_plane"     = local.dp_ns,
+    "data_plane_ext" = local.dp_ext_ns
+  }
+}
+
+# Create the namespaces we need to
 resource "kubernetes_namespace" "kong" {
-  for_each = local.tmp_namespaces
+  for_each = local.namespaces_to_create
   metadata {
     name = terraform.workspace == "default" ? each.value : "${each.value}-${terraform.workspace}"
   }
 }
+
+########### Supporting Deployments ###############
 
 module "datadog" {
   count                 = var.deploy_datadog_agents ? 1 : 0
@@ -118,6 +217,8 @@ module "postgres_init" {
   kong_database_name         = lookup(var.kong_control_plane_config, "KONG_PG_DATABASE", "kong")
 }
 
+########### Certificate Creation #################
+
 module "tls_cluster" {
   source                = "./modules/tls"
   private_key_algorithm = var.tls_cluster.private_key_algorithm
@@ -125,25 +226,43 @@ module "tls_cluster" {
   ca_common_name        = var.tls_cluster.ca_common_name
   override_common_name  = var.tls_cluster.override_common_name
   namespaces            = var.tls_cluster.namespaces
-  namespace_map         = local.namespace_map
+  namespace_map         = local.certificate_namespace_map
   certificates          = var.tls_cluster.certificates
 }
 
+# This module should be replaced with a certificate manager
+# implementation
 module "tls_services" {
   source                = "./modules/tls"
   ca_common_name        = var.tls_services.ca_common_name
   validity_period_hours = var.validity_period_hours
   namespaces            = var.tls_services.namespaces
-  namespace_map         = local.namespace_map
+  namespace_map         = local.certificate_namespace_map
   certificates          = var.tls_services.certificates
 }
 
+# This module should be replaced with a certificate manager
+# implementation
 module "tls_ingress" {
   source         = "./modules/tls"
   ca_common_name = var.tls_ingress.ca_common_name
   namespaces     = var.tls_ingress.namespaces
-  namespace_map  = local.namespace_map
+  namespace_map  = local.certificate_namespace_map
   certificates   = var.tls_ingress.certificates
+}
+
+########### DNS Creation #########################
+locals {
+
+  # This regex is used to extract the fqdn from the kong service endpoint urls
+  port_replace_regex = "/:[0-9]*/"
+  # These local vars are used to create the DNS targets
+  proxy        = replace(module.kong-dp.proxy_ssl_endpoint, local.port_replace_regex, "")
+  proxy_ext    = replace(local.extra_dp ? module.kong-dp-ext.0.proxy_ssl_endpoint : "", local.port_replace_regex, "")
+  admin        = replace(module.kong-cp.admin_ssl_endpoint, local.port_replace_regex, "")
+  manager      = replace(module.kong-cp.manager_ssl_endpoint, local.port_replace_regex, "")
+  portal_admin = replace(module.kong-cp.portal_admin_ssl_endpoint, local.port_replace_regex, "")
+  portal_gui   = replace(module.kong-cp.portal_gui_ssl_endpoint, local.port_replace_regex, "")
 }
 
 module "dns_name_proxy" {
@@ -151,7 +270,7 @@ module "dns_name_proxy" {
   source        = "./modules/route53"
   zone_id       = var.route53_zone_id
   cname_name    = var.proxy_cname
-  cname_targets = [replace(module.kong-dp.proxy_ssl_endpoint, local.rp, "")]
+  cname_targets = [local.proxy]
 }
 
 module "dns_name_proxy_ext" {
@@ -159,7 +278,7 @@ module "dns_name_proxy_ext" {
   source        = "./modules/route53"
   zone_id       = var.route53_zone_id
   cname_name    = var.proxy_ext_cname
-  cname_targets = [replace(module.kong-dp-ext.0.proxy_ssl_endpoint, local.rp, "")]
+  cname_targets = [local.proxy_ext]
 }
 
 module "dns_name_devportal" {
@@ -167,7 +286,7 @@ module "dns_name_devportal" {
   source        = "./modules/route53"
   zone_id       = var.route53_zone_id
   cname_name    = var.portal_gui_cname
-  cname_targets = [replace(module.kong-cp.portal_gui_ssl_endpoint, local.rp, "")]
+  cname_targets = [local.portal_gui]
 }
 
 module "dns_name_manager" {
@@ -175,7 +294,7 @@ module "dns_name_manager" {
   source        = "./modules/route53"
   zone_id       = var.route53_zone_id
   cname_name    = var.manager_cname
-  cname_targets = [replace(module.kong-cp.manager_ssl_endpoint, local.rp, "")]
+  cname_targets = [local.manager]
 }
 
 module "dns_name_admin" {
@@ -183,7 +302,7 @@ module "dns_name_admin" {
   source        = "./modules/route53"
   zone_id       = var.route53_zone_id
   cname_name    = var.admin_cname
-  cname_targets = [replace(module.kong-cp.admin_ssl_endpoint, local.rp, "")]
+  cname_targets = [local.admin]
 }
 
 module "dns_name_portal_admin" {
@@ -191,20 +310,12 @@ module "dns_name_portal_admin" {
   source        = "./modules/route53"
   zone_id       = var.route53_zone_id
   cname_name    = var.portal_admin_cname
-  cname_targets = [replace(module.kong-cp.portal_admin_ssl_endpoint, local.rp, "")]
+  cname_targets = [local.portal_admin]
 }
 
+# The following local variables are used to create
+# any runtime configuration for out Kong deployments
 locals {
-  # Place the namespaces into their local variables, namespaces can be derived from existing or created namespaces, and in the case of the extra data plane namespaces may not exist at all
-  cp_ns     = var.existing_namespaces ? data.kubernetes_namespace.control_plane.0.metadata.0.name : kubernetes_namespace.kong["control_plane"].metadata[0].name
-  dp_ns     = var.existing_namespaces ? data.kubernetes_namespace.data_plane.0.metadata.0.name : local.one_ns ? kubernetes_namespace.kong["control_plane"].metadata[0].name : kubernetes_namespace.kong["data_plane"].metadata[0].name
-  dp_ext_ns = local.extra_ns ? var.existing_namespaces ? data.kubernetes_namespace.data_plane_ext.0.metadata.0.name : local.one_ns ? kubernetes_namespace.kong["control_plane"].metadata[0].name : kubernetes_namespace.kong["data_plane_ext"].metadata[0].name : local.extra_dp ? var.namespaces["data_plane_ext"] : null
-
-  # this map is needed for secrets creation, so we don't try to store the secrets in the same namespace twice
-  tmp_namespace_map = tomap(local.one_ns ? { "control_plane" = local.cp_ns } : local.extra_ns ? { "control_plane" = local.cp_ns, "data_plane" = local.dp_ns, "data_plane_ext" = local.dp_ext_ns } : { "control_plane" = local.cp_ns, "data_plane" = local.dp_ns })
-
-  # this map is needed for tls certificates creation
-  namespace_map = { "control_plane" = local.cp_ns, "data_plane" = local.dp_ns, "data_plane_ext" = local.dp_ext_ns }
 
   ########## Security group injection ############
   # Create a local variable of the hash item we want to inject into
@@ -252,41 +363,23 @@ locals {
     }
   }
 
-  rp = "/:[0-9]*/"
-  dp_mounts = concat(module.tls_cluster.namespace_name_map["data_plane"],
-  module.tls_services.namespace_name_map["data_plane"])
-
-  dp_ext_mounts = local.extra_dp ? concat(module.tls_cluster.namespace_name_map["data_plane_ext"],
-  module.tls_services.namespace_name_map["data_plane_ext"]) : []
-
-  cp_mounts = concat(module.tls_cluster.namespace_name_map["control_plane"],
-  module.tls_services.namespace_name_map["control_plane"])
-
-  proxy     = module.kong-dp.proxy_endpoint
-  proxy_ssl = module.kong-dp.proxy_ssl_endpoint
-
-  proxy_ext     = local.extra_dp ? module.kong-dp-ext.0.proxy_endpoint : ""
-  proxy_ssl_ext = local.extra_dp ? module.kong-dp-ext.0.proxy_ssl_endpoint : ""
-
-  admin        = module.kong-cp.admin_endpoint
-  manager      = module.kong-cp.manager_endpoint
-  portal_admin = module.kong-cp.portal_admin_endpoint
-  portal_gui   = module.kong-cp.portal_gui_endpoint
-
-  cluster   = module.kong-cp.cluster_endpoint
-  telemetry = module.kong-cp.telemetry_endpoint
-
-  kong_cp_deployment_name     = var.control_plane_deployment_name
-  kong_dp_deployment_name     = var.data_plane_deployment_name
-  kong_dp_ext_deployment_name = var.data_plane_ext_deployment_name
-  kong_image                  = var.kong_image
-
+  # Image pull secret, will be added into each Kong deployment
   kong_image_pull_secrets = [
     {
       name = var.image_pull_secret_name
     }
   ]
 
+  # The tls modules provide output of the secretes we have created for the mutual tls and the service
+  # endpoints. They are all tls certificate types and are used to secure the Kong service endpoints.
+  # Here we concat them together to make a list of secret volumes we can mount in the Kong
+  # containers
+  cp_mounts     = concat(module.tls_cluster.namespace_name_map["control_plane"], module.tls_services.namespace_name_map["control_plane"])
+  dp_mounts     = concat(module.tls_cluster.namespace_name_map["data_plane"], module.tls_services.namespace_name_map["data_plane"])
+  dp_ext_mounts = local.extra_dp ? concat(module.tls_cluster.namespace_name_map["data_plane_ext"], module.tls_services.namespace_name_map["data_plane_ext"]) : []
+
+  # Loop through the secrets to specify the mount points
+  # and the name of the volume secret to attach to it
   kong_dp_volume_mounts = [for p in local.dp_mounts :
     {
       mount_path = "/etc/secrets/${p}"
@@ -295,6 +388,10 @@ locals {
     }
   ]
 
+  # Loop through the secrets to specify the volume secrets.
+  # The volume secrets map a name to a secret name.
+  # The volume mounts above ling the volume secret name to a
+  # mount point on the pod file system
   kong_dp_volume_secrets = [for p in local.dp_mounts :
     {
       name        = p
@@ -302,6 +399,8 @@ locals {
     }
   ]
 
+  # Loop through the secrets to specify the mount points
+  # and the name of the volume secret to attach to it
   kong_dp_ext_volume_mounts = [for p in local.dp_ext_mounts :
     {
       mount_path = "/etc/secrets/${p}"
@@ -310,6 +409,10 @@ locals {
     }
   ]
 
+  # Loop through the secrets to specify the volume secrets.
+  # The volume secrets map a name to a secret name.
+  # The volume mounts above ling the volume secret name to a
+  # mount point on the pod file system
   kong_dp_ext_volume_secrets = [for p in local.dp_ext_mounts :
     {
       name        = p
@@ -317,6 +420,8 @@ locals {
     }
   ]
 
+  # Loop through the secrets to specify the mount points
+  # and the name of the volume secret to attach to it
   kong_cp_volume_mounts = [for p in local.cp_mounts :
     {
       mount_path = "/etc/secrets/${p}"
@@ -325,6 +430,10 @@ locals {
     }
   ]
 
+  # Loop through the secrets to specify the volume secrets.
+  # The volume secrets map a name to a secret name.
+  # The volume mounts above ling the volume secret name to a
+  # mount point on the pod file system
   kong_cp_volume_secrets = [for p in local.cp_mounts :
     {
       name        = p
@@ -332,8 +441,10 @@ locals {
     }
   ]
 
-  # Control plane configuration 
-
+  # Control plane secret configuration. This is configuration
+  # we inject into the control plane at runtime due to its sensitive nature.
+  # This allows us to consume sensitive configuration from the kubernetes secret
+  # store.
   kong_cp_secret_config = [
     {
       name        = "KONG_LICENSE_DATA"
@@ -367,11 +478,10 @@ locals {
     }
   ]
 
-  pg_host = lookup(var.kong_control_plane_config, "KONG_PG_HOST", "") == "" ? { "KONG_PG_HOST" = module.postgres.0.connection.ip } : {}
-  pg_port = lookup(var.kong_control_plane_config, "KONG_PG_PORT", "") == "" ? { "KONG_PG_PORT" = module.postgres.0.connection.port } : {}
-
-  kong_cp_config = merge(var.kong_control_plane_config, local.pg_host, local.pg_port)
-
+  # Data plane secret configuration. This is configuration
+  # we inject into the control plane at runtime due to its sensitive nature.
+  # This allows us to consume sensitive configuration from the kubernetes secret
+  # store.
   kong_dp_secret_config = [
     {
       name        = "KONG_LICENSE_DATA"
@@ -380,6 +490,10 @@ locals {
     }
   ]
 
+  # Extra data plane secret configuration. This is configuration
+  # we inject into the control plane at runtime due to its sensitive nature.
+  # This allows us to consume sensitive configuration from the kubernetes secret
+  # store.   
   kong_dp_ext_secret_config = [
     {
       name        = "KONG_LICENSE_DATA"
@@ -388,29 +502,48 @@ locals {
     }
   ]
 
+  # In some scenarios we want to connect to an external postgres and in other we connect to a postgresql
+  # instance created by this module. The following loginc looks for the KONG_PG_HOST and KONG_PG_PORT
+  # config settings in kong_control_plane_config if it does not find them we assume this module
+  # created a postgresql instance and inject those details into the control plane config
+  pg_host = lookup(var.kong_control_plane_config, "KONG_PG_HOST", "") == "" ? { "KONG_PG_HOST" = module.postgres.0.connection.ip } : {}
+  pg_port = lookup(var.kong_control_plane_config, "KONG_PG_PORT", "") == "" ? { "KONG_PG_PORT" = module.postgres.0.connection.port } : {}
+
+  # Merge the pg_host and pg_port detilas into the main kong control plain config
+  kong_cp_config = merge(var.kong_control_plane_config, local.pg_host, local.pg_port)
+
+  # We will only know the cluster and telemetry addresses at run time
+  # the followig hash gets merged into the main data plane configuration
   kong_dp_merge_config = {
-    "KONG_CLUSTER_CONTROL_PLANE"      = "kong-cluster.${local.namespace_map["control_plane"]}.svc.cluster.local:8005",
-    "KONG_CLUSTER_TELEMETRY_ENDPOINT" = "kong-telemetry.${local.namespace_map["control_plane"]}.svc.cluster.local:8006"
+    "KONG_CLUSTER_CONTROL_PLANE"      = "kong-cluster.${local.cp_ns}.svc.cluster.local:8005",
+    "KONG_CLUSTER_TELEMETRY_ENDPOINT" = "kong-telemetry.${local.cp_ns}.svc.cluster.local:8006"
   }
 
+  # We will only know the cluster and telemetry addresses at run time
+  # the followig hash gets merged into the main extra data plane configuration
   kong_dp_ext_merge_config = {
-    "KONG_CLUSTER_CONTROL_PLANE"      = "kong-cluster.${local.namespace_map["control_plane"]}.svc.cluster.local:8005",
-    "KONG_CLUSTER_TELEMETRY_ENDPOINT" = "kong-telemetry.${local.namespace_map["control_plane"]}.svc.cluster.local:8006"
+    "KONG_CLUSTER_CONTROL_PLANE"      = "kong-cluster.${local.cp_ns}.svc.cluster.local:8005",
+    "KONG_CLUSTER_TELEMETRY_ENDPOINT" = "kong-telemetry.${local.cp_ns}.svc.cluster.local:8006"
   }
+
+  # Merge the static config supplied by the kong_data_plane_config variable
+  # with any dynamic config we have created
   kong_dp_config     = merge(var.kong_data_plane_config, local.kong_dp_merge_config)
   kong_dp_ext_config = merge(var.kong_data_plane_ext_config, local.kong_dp_ext_merge_config)
+
 }
 
-# Use the Kong module to create a cp
+# At this point we call the kong module, with all of the configuation
+# needed to deploy a control plane
 module "kong-cp" {
   source                 = "Kong/kong-gateway/kubernetes"
   version                = "0.0.14"
-  deployment_name        = local.kong_cp_deployment_name
+  deployment_name        = var.control_plane_deployment_name
   namespace              = local.cp_ns
   deployment_replicas    = var.control_plane_replicas
   config                 = local.kong_cp_config
   secret_config          = local.kong_cp_secret_config
-  kong_image             = local.kong_image
+  kong_image             = var.kong_image
   image_pull_secrets     = local.kong_image_pull_secrets
   volume_mounts          = local.kong_cp_volume_mounts
   volume_secrets         = local.kong_cp_volume_secrets
@@ -418,25 +551,26 @@ module "kong-cp" {
   load_balancer_services = local.cp_lb_svcs_merged_annotations
   enable_autoscaler      = var.enable_autoscaler
   deployment_annotations = {
-    "ad.datadoghq.com/${local.kong_cp_deployment_name}.check_names"  = "[\"kong\"]"
-    "ad.datadoghq.com/${local.kong_cp_deployment_name}.init_configs" = "[{}]"
-    "ad.datadoghq.com/${local.kong_cp_deployment_name}.instances"    = "[{\"kong_status_url\": \"http://%%host%%:8100/status/\"}]"
-    "ad.datadoghq.com/${local.kong_cp_deployment_name}.logs"         = "[{\"source\":\"kong\",\"service\":\"${local.kong_cp_deployment_name}\"}]"
+    "ad.datadoghq.com/${var.control_plane_deployment_name}.check_names"  = "[\"kong\"]"
+    "ad.datadoghq.com/${var.control_plane_deployment_name}.init_configs" = "[{}]"
+    "ad.datadoghq.com/${var.control_plane_deployment_name}.instances"    = "[{\"kong_status_url\": \"http://%%host%%:8100/status/\"}]"
+    "ad.datadoghq.com/${var.control_plane_deployment_name}.logs"         = "[{\"source\":\"kong\",\"service\":\"${var.control_plane_deployment_name}\"}]"
   }
   ingress    = var.cp_ingress
   depends_on = [kubernetes_namespace.kong]
 }
 
-## Use the Kong module to create a dp
+# At this point we call the kong module, with all of the configuation
+# needed to deploy a data plane
 module "kong-dp" {
   source                 = "Kong/kong-gateway/kubernetes"
   version                = "0.0.14"
-  deployment_name        = local.kong_dp_deployment_name
+  deployment_name        = var.data_plane_deployment_name
   namespace              = local.dp_ns
   deployment_replicas    = var.data_plane_replicas
   config                 = local.kong_dp_config
   secret_config          = local.kong_dp_secret_config
-  kong_image             = local.kong_image
+  kong_image             = var.kong_image
   image_pull_secrets     = local.kong_image_pull_secrets
   volume_mounts          = local.kong_dp_volume_mounts
   volume_secrets         = local.kong_dp_volume_secrets
@@ -444,25 +578,26 @@ module "kong-dp" {
   load_balancer_services = local.dp_lb_svcs_merged_annotations
   enable_autoscaler      = var.enable_autoscaler
   deployment_annotations = {
-    "ad.datadoghq.com/${local.kong_dp_deployment_name}.check_names"  = "[\"kong\"]"
-    "ad.datadoghq.com/${local.kong_dp_deployment_name}.init_configs" = "[{}]"
-    "ad.datadoghq.com/${local.kong_dp_deployment_name}.instances"    = "[{\"kong_status_url\": \"http://%%host%%:8100/status/\"}]"
-    "ad.datadoghq.com/${local.kong_dp_deployment_name}.logs"         = "[{\"source\":\"kong\",\"service\":\"${local.kong_dp_deployment_name}\"}]"
+    "ad.datadoghq.com/${var.data_plane_deployment_name}.check_names"  = "[\"kong\"]"
+    "ad.datadoghq.com/${var.data_plane_deployment_name}.init_configs" = "[{}]"
+    "ad.datadoghq.com/${var.data_plane_deployment_name}.instances"    = "[{\"kong_status_url\": \"http://%%host%%:8100/status/\"}]"
+    "ad.datadoghq.com/${var.data_plane_deployment_name}.logs"         = "[{\"source\":\"kong\",\"service\":\"${var.data_plane_deployment_name}\"}]"
   }
   ingress    = var.dp_ingress
   depends_on = [kubernetes_namespace.kong]
 }
 
+# If needed we can deploy an extra set of data planes.
 module "kong-dp-ext" {
   count                  = local.extra_dp ? 1 : 0
   source                 = "Kong/kong-gateway/kubernetes"
   version                = "0.0.14"
-  deployment_name        = local.kong_dp_ext_deployment_name
+  deployment_name        = var.data_plane_ext_deployment_name
   namespace              = local.dp_ext_ns
   deployment_replicas    = var.data_plane_ext_replicas
   config                 = local.kong_dp_ext_config
   secret_config          = local.kong_dp_ext_secret_config
-  kong_image             = local.kong_image
+  kong_image             = var.kong_image
   image_pull_secrets     = local.kong_image_pull_secrets
   volume_mounts          = local.kong_dp_ext_volume_mounts
   volume_secrets         = local.kong_dp_ext_volume_secrets
@@ -470,10 +605,10 @@ module "kong-dp-ext" {
   load_balancer_services = local.dp_ext_lb_svcs_merged_annotations
   enable_autoscaler      = var.enable_autoscaler
   deployment_annotations = {
-    "ad.datadoghq.com/${local.kong_dp_ext_deployment_name}.check_names"  = "[\"kong\"]"
-    "ad.datadoghq.com/${local.kong_dp_ext_deployment_name}.init_configs" = "[{}]"
-    "ad.datadoghq.com/${local.kong_dp_ext_deployment_name}.instances"    = "[{\"kong_status_url\": \"http://%%host%%:8100/status/\"}]"
-    "ad.datadoghq.com/${local.kong_dp_ext_deployment_name}.logs"         = "[{\"source\":\"kong\",\"service\":\"${local.kong_dp_ext_deployment_name}\"}]"
+    "ad.datadoghq.com/${var.data_plane_ext_deployment_name}.check_names"  = "[\"kong\"]"
+    "ad.datadoghq.com/${var.data_plane_ext_deployment_name}.init_configs" = "[{}]"
+    "ad.datadoghq.com/${var.data_plane_ext_deployment_name}.instances"    = "[{\"kong_status_url\": \"http://%%host%%:8100/status/\"}]"
+    "ad.datadoghq.com/${var.data_plane_ext_deployment_name}.logs"         = "[{\"source\":\"kong\",\"service\":\"${var.data_plane_ext_deployment_name}\"}]"
   }
   ingress    = var.dp_ext_ingress
   depends_on = [kubernetes_namespace.kong]
