@@ -5,7 +5,7 @@ kong_license_file  = "~/.kong_license"
 kong_image = "kong-docker-kong-enterprise-edition-docker.bintray.io/kong-enterprise-edition:2.3.2.0-alpine"
 
 super_admin_password   = "password"
-kong_database_password = "kong"
+kong_database_password_file = "~/.kong_db_pass"
 
 #kong_admin_gui_auth_conf_file = "~/.kong_configs/admin_gui_auth_conf_okta_oidc"
 #kong_portal_auth_conf_file    = "~/.kong_configs/portal_auth_conf_okta_oidc"
