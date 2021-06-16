@@ -176,12 +176,8 @@ module "datadog" {
 }
 
 module "redis" {
+  count     = var.deploy_redis ? 1 : 0
   source    = "./modules/redis"
-  namespace = local.cp_ns
-}
-
-module "service" {
-  source    = "./modules/service"
   namespace = local.cp_ns
 }
 
@@ -217,6 +213,37 @@ module "postgres_init" {
   kong_database_name         = lookup(var.kong_control_plane_config, "KONG_PG_DATABASE", "kong")
 }
 
+############ Kong Migrations #####################
+
+module "kong_migrations_pre" {
+  count                      = var.kong_migrations_pre ? 1 : 0
+  source                     = "./modules/migrations_pre"
+  namespace                  = local.cp_ns
+  kong_superuser_secret_name = var.kong_superuser_secret_name
+  kong_database_secret_name  = var.kong_database_secret_name
+  kong_license_secret_name   = var.kong_license_secret_name
+  kong_image                 = var.kong_image
+  kong_database_host         = lookup(var.kong_control_plane_config, "KONG_PG_HOST", null) != null ? var.kong_control_plane_config["KONG_PG_HOST"] : module.postgres.0.connection.ip
+  kong_database_port         = lookup(var.kong_control_plane_config, "KONG_PG_PORT", null) != null ? var.kong_control_plane_config["KONG_PG_PORT"] : module.postgres.0.connection.port
+  kong_database_user         = lookup(var.kong_control_plane_config, "KONG_PG_USER", "kong")
+  kong_database_name         = lookup(var.kong_control_plane_config, "KONG_PG_DATABASE", "kong")
+}
+
+module "kong_migrations_post" {
+  count                      = var.kong_migrations_post ? 1 : 0
+  source                     = "./modules/migrations_post"
+  namespace                  = local.cp_ns
+  kong_superuser_secret_name = var.kong_superuser_secret_name
+  kong_database_secret_name  = var.kong_database_secret_name
+  kong_license_secret_name   = var.kong_license_secret_name
+  kong_image                 = var.kong_image
+  kong_database_host         = lookup(var.kong_control_plane_config, "KONG_PG_HOST", null) != null ? var.kong_control_plane_config["KONG_PG_HOST"] : module.postgres.0.connection.ip
+  kong_database_port         = lookup(var.kong_control_plane_config, "KONG_PG_PORT", null) != null ? var.kong_control_plane_config["KONG_PG_PORT"] : module.postgres.0.connection.port
+  kong_database_user         = lookup(var.kong_control_plane_config, "KONG_PG_USER", "kong")
+  kong_database_name         = lookup(var.kong_control_plane_config, "KONG_PG_DATABASE", "kong")
+  depends_on                 = [module.kong_migrations_pre, module.kong-cp]
+}
+
 ########### Certificate Creation #################
 
 module "tls_cluster" {
@@ -228,27 +255,6 @@ module "tls_cluster" {
   namespaces            = var.tls_cluster.namespaces
   namespace_map         = local.certificate_namespace_map
   certificates          = var.tls_cluster.certificates
-}
-
-# This module should be replaced with a certificate manager
-# implementation
-module "tls_services" {
-  source                = "./modules/tls"
-  ca_common_name        = var.tls_services.ca_common_name
-  validity_period_hours = var.validity_period_hours
-  namespaces            = var.tls_services.namespaces
-  namespace_map         = local.certificate_namespace_map
-  certificates          = var.tls_services.certificates
-}
-
-# This module should be replaced with a certificate manager
-# implementation
-module "tls_ingress" {
-  source         = "./modules/tls"
-  ca_common_name = var.tls_ingress.ca_common_name
-  namespaces     = var.tls_ingress.namespaces
-  namespace_map  = local.certificate_namespace_map
-  certificates   = var.tls_ingress.certificates
 }
 
 ########### DNS Creation #########################
@@ -374,9 +380,12 @@ locals {
   # endpoints. They are all tls certificate types and are used to secure the Kong service endpoints.
   # Here we concat them together to make a list of secret volumes we can mount in the Kong
   # containers
-  cp_mounts     = concat(module.tls_cluster.namespace_name_map["control_plane"], module.tls_services.namespace_name_map["control_plane"])
-  dp_mounts     = concat(module.tls_cluster.namespace_name_map["data_plane"], module.tls_services.namespace_name_map["data_plane"])
-  dp_ext_mounts = local.extra_dp ? concat(module.tls_cluster.namespace_name_map["data_plane_ext"], module.tls_services.namespace_name_map["data_plane_ext"]) : []
+  #cp_mounts     = concat(module.tls_cluster.namespace_name_map["control_plane"], module.tls_services.namespace_name_map["control_plane"])
+  #dp_mounts     = concat(module.tls_cluster.namespace_name_map["data_plane"], module.tls_services.namespace_name_map["data_plane"])
+  #dp_ext_mounts = local.extra_dp ? concat(module.tls_cluster.namespace_name_map["data_plane_ext"], module.tls_services.namespace_name_map["data_plane_ext"]) : []
+  cp_mounts     = concat(module.tls_cluster.namespace_name_map["control_plane"])
+  dp_mounts     = concat(module.tls_cluster.namespace_name_map["data_plane"])
+  dp_ext_mounts = local.extra_dp ? concat(module.tls_cluster.namespace_name_map["data_plane_ext"]) : []
 
   # Loop through the secrets to specify the mount points
   # and the name of the volume secret to attach to it
@@ -505,7 +514,7 @@ locals {
   # In some scenarios we want to connect to an external postgres and in other we connect to a postgresql
   # instance created by this module. The following loginc looks for the KONG_PG_HOST and KONG_PG_PORT
   # config settings in kong_control_plane_config if it does not find them we assume this module
-  # created a postgresql instance and inject those details into the control plane config
+  # created a postgresql instance and inject those details into the control plane config : module.
   pg_host = lookup(var.kong_control_plane_config, "KONG_PG_HOST", "") == "" ? { "KONG_PG_HOST" = module.postgres.0.connection.ip } : {}
   pg_port = lookup(var.kong_control_plane_config, "KONG_PG_PORT", "") == "" ? { "KONG_PG_PORT" = module.postgres.0.connection.port } : {}
 
@@ -537,7 +546,7 @@ locals {
 # needed to deploy a control plane
 module "kong-cp" {
   source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.14"
+  version                = "0.0.17"
   deployment_name        = var.control_plane_deployment_name
   namespace              = local.cp_ns
   deployment_replicas    = var.control_plane_replicas
@@ -557,14 +566,14 @@ module "kong-cp" {
     "ad.datadoghq.com/${var.control_plane_deployment_name}.logs"         = "[{\"source\":\"kong\",\"service\":\"${var.control_plane_deployment_name}\"}]"
   }
   ingress    = var.cp_ingress
-  depends_on = [kubernetes_namespace.kong]
+  depends_on = [kubernetes_namespace.kong, module.kong_migrations_pre]
 }
 
 # At this point we call the kong module, with all of the configuation
 # needed to deploy a data plane
 module "kong-dp" {
   source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.14"
+  version                = "0.0.17"
   deployment_name        = var.data_plane_deployment_name
   namespace              = local.dp_ns
   deployment_replicas    = var.data_plane_replicas
@@ -584,14 +593,14 @@ module "kong-dp" {
     "ad.datadoghq.com/${var.data_plane_deployment_name}.logs"         = "[{\"source\":\"kong\",\"service\":\"${var.data_plane_deployment_name}\"}]"
   }
   ingress    = var.dp_ingress
-  depends_on = [kubernetes_namespace.kong]
+  depends_on = [kubernetes_namespace.kong, module.kong_migrations_pre, module.kong_migrations_post]
 }
 
 # If needed we can deploy an extra set of data planes.
 module "kong-dp-ext" {
   count                  = local.extra_dp ? 1 : 0
   source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.14"
+  version                = "0.0.17"
   deployment_name        = var.data_plane_ext_deployment_name
   namespace              = local.dp_ext_ns
   deployment_replicas    = var.data_plane_ext_replicas
@@ -611,5 +620,5 @@ module "kong-dp-ext" {
     "ad.datadoghq.com/${var.data_plane_ext_deployment_name}.logs"         = "[{\"source\":\"kong\",\"service\":\"${var.data_plane_ext_deployment_name}\"}]"
   }
   ingress    = var.dp_ext_ingress
-  depends_on = [kubernetes_namespace.kong]
+  depends_on = [kubernetes_namespace.kong, module.kong_migrations_pre, module.kong_migrations_post]
 }

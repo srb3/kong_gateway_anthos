@@ -55,12 +55,15 @@ jobs:
           cat << EOF > ~/.kong_license
           ${{ secrets.KONG_LICENSE_FILE }}
           EOF
+          cat << EOF > ~/.kong_db_pass
+          ${{ secrets.KONG_DATABASE_PASSWORD }}
+          EOF
           cp terraform.tfvars.example terraform.tfvars
       - name: Kitchen Test
         run: kitchen converge default || true
         env:
           TF_VAR_super_admin_password: ${{ secrets.SUPER_ADMIN_PASSWORD }}
-          TF_VAR_kong_database_password: ${{ secrets.KONG_DATABASE_PASSWORD }}
+          TF_VAR_kong_database_password_file: ~/.kong_db_pass
           TF_VAR_kong_image: ${{ secrets.KONG_IMAGE }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

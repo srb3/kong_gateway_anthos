@@ -101,7 +101,7 @@ resource "kubernetes_secret" "kong-database-password" {
 
   type = "Opaque"
   data = {
-    (var.kong_database_secret_name) = var.kong_database_password
+    (var.kong_database_secret_name) = file(var.kong_database_password_file)
   }
 }
 
