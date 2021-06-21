@@ -347,7 +347,6 @@ locals {
   dp_svcs_merged_annotations = {
     for k, v in var.dp_svcs :
     k => {
-      annotations = merge(v.annotations, local.sg_item)
       annotations = v.type == "LoadBalancer" ? merge(v.annotations, local.sg_item) : v.annotations
       labels      = v.labels
       type        = v.type
@@ -378,9 +377,6 @@ locals {
   # endpoints. They are all tls certificate types and are used to secure the Kong service endpoints.
   # Here we concat them together to make a list of secret volumes we can mount in the Kong
   # containers
-  #cp_mounts     = concat(module.tls_cluster.namespace_name_map["control_plane"], module.tls_services.namespace_name_map["control_plane"])
-  #dp_mounts     = concat(module.tls_cluster.namespace_name_map["data_plane"], module.tls_services.namespace_name_map["data_plane"])
-  #dp_ext_mounts = local.extra_dp ? concat(module.tls_cluster.namespace_name_map["data_plane_ext"], module.tls_services.namespace_name_map["data_plane_ext"]) : []
   cp_mounts     = concat(module.tls_cluster.namespace_name_map["control_plane"])
   dp_mounts     = concat(module.tls_cluster.namespace_name_map["data_plane"])
   dp_ext_mounts = local.extra_dp ? concat(module.tls_cluster.namespace_name_map["data_plane_ext"]) : []

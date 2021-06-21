@@ -46,7 +46,7 @@ resource "kubernetes_job" "kong-migrations" {
               add  = var.container_security_context.capabilities.add
               drop = var.container_security_context.capabilities.drop
             }
-            privileged                = var.container_security_context.read_only_root_filesystem
+            privileged                = var.container_security_context.privileged
             read_only_root_filesystem = var.container_security_context.read_only_root_filesystem
             run_as_group              = var.container_security_context.run_as_group
             run_as_non_root           = var.container_security_context.run_as_non_root
