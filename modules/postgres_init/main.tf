@@ -1,16 +1,25 @@
-resource "kubernetes_job" "demo" {
+resource "kubernetes_job" "kong-migrations" {
   metadata {
     name      = "kong-migrations"
     namespace = var.namespace
+    labels    = var.labels
   }
   spec {
     template {
       metadata {
-        name = "kong-migrations"
+        name   = "kong-migrations"
+        labels = var.labels
       }
       spec {
         image_pull_secrets {
           name = "kong-enterprise-edition-docker"
+        }
+        security_context {
+          fs_group            = var.pod_security_context.fs_group
+          run_as_group        = var.pod_security_context.run_as_group
+          run_as_non_root     = var.pod_security_context.run_as_non_root
+          run_as_user         = var.pod_security_context.run_as_user
+          supplemental_groups = var.pod_security_context.supplemental_groups
         }
         restart_policy = "OnFailure"
         init_container {
@@ -31,6 +40,18 @@ resource "kubernetes_job" "demo" {
           }
         }
         container {
+          security_context {
+            allow_privilege_escalation = var.container_security_context.allow_privilege_escalation
+            capabilities {
+              add  = var.container_security_context.capabilities.add
+              drop = var.container_security_context.capabilities.drop
+            }
+            privileged                = var.container_security_context.read_only_root_filesystem
+            read_only_root_filesystem = var.container_security_context.read_only_root_filesystem
+            run_as_group              = var.container_security_context.run_as_group
+            run_as_non_root           = var.container_security_context.run_as_non_root
+            run_as_user               = var.container_security_context.run_as_user
+          }
           image = var.kong_image
           name  = "kong-migrations"
           command = [
