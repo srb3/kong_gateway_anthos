@@ -330,42 +330,39 @@ locals {
     "service.beta.kubernetes.io/aws-load-balancer-extra-security-groups" = var.sg_passthrough
   }
 
-  # loop through each of the control plane load balancer services
+  # loop through each of the control plane services
   # keep everything the same but merge sg_item with the other annotations
-  cp_lb_svcs_merged_annotations = {
-    for k, v in var.cp_lb_svcs :
+  cp_svcs_merged_annotations = {
+    for k, v in var.cp_svcs :
     k => {
-      load_balancer_source_ranges = v.load_balancer_source_ranges
-      annotations                 = merge(v.annotations, local.sg_item)
-      external_traffic_policy     = v.external_traffic_policy
-      health_check_node_port      = v.health_check_node_port
-      ports                       = v.ports
+      annotations = v.type == "LoadBalancer" ? merge(v.annotations, local.sg_item) : v.annotations
+      labels      = v.labels
+      type        = v.type
+      ports       = v.ports
     }
   }
 
   # loop through each of the data plane load balancer services
   # keep everything the same but merge sg_item with the other annotations
-  dp_lb_svcs_merged_annotations = {
-    for k, v in var.dp_lb_svcs :
+  dp_svcs_merged_annotations = {
+    for k, v in var.dp_svcs :
     k => {
-      load_balancer_source_ranges = v.load_balancer_source_ranges
-      annotations                 = merge(v.annotations, local.sg_item)
-      external_traffic_policy     = v.external_traffic_policy
-      health_check_node_port      = v.health_check_node_port
-      ports                       = v.ports
+      annotations = v.type == "LoadBalancer" ? merge(v.annotations, local.sg_item) : v.annotations
+      labels      = v.labels
+      type        = v.type
+      ports       = v.ports
     }
   }
 
   # loop through each of the extra data plane load balancer services
   # keep everything the same but merge sg_item with the other annotations
-  dp_ext_lb_svcs_merged_annotations = {
-    for k, v in var.dp_ext_lb_svcs :
+  dp_ext_svcs_merged_annotations = {
+    for k, v in var.dp_ext_svcs :
     k => {
-      load_balancer_source_ranges = v.load_balancer_source_ranges
-      annotations                 = merge(v.annotations, local.sg_item)
-      external_traffic_policy     = v.external_traffic_policy
-      health_check_node_port      = v.health_check_node_port
-      ports                       = v.ports
+      annotations = v.type == "LoadBalancer" ? merge(v.annotations, local.sg_item) : v.annotations
+      labels      = v.labels
+      type        = v.type
+      ports       = v.ports
     }
   }
 
@@ -380,9 +377,6 @@ locals {
   # endpoints. They are all tls certificate types and are used to secure the Kong service endpoints.
   # Here we concat them together to make a list of secret volumes we can mount in the Kong
   # containers
-  #cp_mounts     = concat(module.tls_cluster.namespace_name_map["control_plane"], module.tls_services.namespace_name_map["control_plane"])
-  #dp_mounts     = concat(module.tls_cluster.namespace_name_map["data_plane"], module.tls_services.namespace_name_map["data_plane"])
-  #dp_ext_mounts = local.extra_dp ? concat(module.tls_cluster.namespace_name_map["data_plane_ext"], module.tls_services.namespace_name_map["data_plane_ext"]) : []
   cp_mounts     = concat(module.tls_cluster.namespace_name_map["control_plane"])
   dp_mounts     = concat(module.tls_cluster.namespace_name_map["data_plane"])
   dp_ext_mounts = local.extra_dp ? concat(module.tls_cluster.namespace_name_map["data_plane_ext"]) : []
@@ -545,20 +539,19 @@ locals {
 # At this point we call the kong module, with all of the configuation
 # needed to deploy a control plane
 module "kong-cp" {
-  source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.17"
-  deployment_name        = var.control_plane_deployment_name
-  namespace              = local.cp_ns
-  deployment_replicas    = var.control_plane_replicas
-  config                 = local.kong_cp_config
-  secret_config          = local.kong_cp_secret_config
-  kong_image             = var.kong_image
-  image_pull_secrets     = local.kong_image_pull_secrets
-  volume_mounts          = local.kong_cp_volume_mounts
-  volume_secrets         = local.kong_cp_volume_secrets
-  services               = var.cp_svcs
-  load_balancer_services = local.cp_lb_svcs_merged_annotations
-  enable_autoscaler      = var.enable_autoscaler
+  source              = "Kong/kong-gateway/kubernetes"
+  version             = "0.0.20"
+  deployment_name     = var.control_plane_deployment_name
+  namespace           = local.cp_ns
+  deployment_replicas = var.control_plane_replicas
+  config              = local.kong_cp_config
+  secret_config       = local.kong_cp_secret_config
+  kong_image          = var.kong_image
+  image_pull_secrets  = local.kong_image_pull_secrets
+  volume_mounts       = local.kong_cp_volume_mounts
+  volume_secrets      = local.kong_cp_volume_secrets
+  services            = local.cp_svcs_merged_annotations
+  enable_autoscaler   = var.enable_autoscaler
   deployment_annotations = {
     "ad.datadoghq.com/${var.control_plane_deployment_name}.check_names"  = "[\"kong\"]"
     "ad.datadoghq.com/${var.control_plane_deployment_name}.init_configs" = "[{}]"
@@ -572,20 +565,19 @@ module "kong-cp" {
 # At this point we call the kong module, with all of the configuation
 # needed to deploy a data plane
 module "kong-dp" {
-  source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.17"
-  deployment_name        = var.data_plane_deployment_name
-  namespace              = local.dp_ns
-  deployment_replicas    = var.data_plane_replicas
-  config                 = local.kong_dp_config
-  secret_config          = local.kong_dp_secret_config
-  kong_image             = var.kong_image
-  image_pull_secrets     = local.kong_image_pull_secrets
-  volume_mounts          = local.kong_dp_volume_mounts
-  volume_secrets         = local.kong_dp_volume_secrets
-  services               = var.dp_svcs
-  load_balancer_services = local.dp_lb_svcs_merged_annotations
-  enable_autoscaler      = var.enable_autoscaler
+  source              = "Kong/kong-gateway/kubernetes"
+  version             = "0.0.20"
+  deployment_name     = var.data_plane_deployment_name
+  namespace           = local.dp_ns
+  deployment_replicas = var.data_plane_replicas
+  config              = local.kong_dp_config
+  secret_config       = local.kong_dp_secret_config
+  kong_image          = var.kong_image
+  image_pull_secrets  = local.kong_image_pull_secrets
+  volume_mounts       = local.kong_dp_volume_mounts
+  volume_secrets      = local.kong_dp_volume_secrets
+  services            = local.dp_svcs_merged_annotations
+  enable_autoscaler   = var.enable_autoscaler
   deployment_annotations = {
     "ad.datadoghq.com/${var.data_plane_deployment_name}.check_names"  = "[\"kong\"]"
     "ad.datadoghq.com/${var.data_plane_deployment_name}.init_configs" = "[{}]"
@@ -598,21 +590,20 @@ module "kong-dp" {
 
 # If needed we can deploy an extra set of data planes.
 module "kong-dp-ext" {
-  count                  = local.extra_dp ? 1 : 0
-  source                 = "Kong/kong-gateway/kubernetes"
-  version                = "0.0.17"
-  deployment_name        = var.data_plane_ext_deployment_name
-  namespace              = local.dp_ext_ns
-  deployment_replicas    = var.data_plane_ext_replicas
-  config                 = local.kong_dp_ext_config
-  secret_config          = local.kong_dp_ext_secret_config
-  kong_image             = var.kong_image
-  image_pull_secrets     = local.kong_image_pull_secrets
-  volume_mounts          = local.kong_dp_ext_volume_mounts
-  volume_secrets         = local.kong_dp_ext_volume_secrets
-  services               = var.dp_ext_svcs
-  load_balancer_services = local.dp_ext_lb_svcs_merged_annotations
-  enable_autoscaler      = var.enable_autoscaler
+  count               = local.extra_dp ? 1 : 0
+  source              = "Kong/kong-gateway/kubernetes"
+  version             = "0.0.20"
+  deployment_name     = var.data_plane_ext_deployment_name
+  namespace           = local.dp_ext_ns
+  deployment_replicas = var.data_plane_ext_replicas
+  config              = local.kong_dp_ext_config
+  secret_config       = local.kong_dp_ext_secret_config
+  kong_image          = var.kong_image
+  image_pull_secrets  = local.kong_image_pull_secrets
+  volume_mounts       = local.kong_dp_ext_volume_mounts
+  volume_secrets      = local.kong_dp_ext_volume_secrets
+  services            = local.dp_ext_svcs_merged_annotations
+  enable_autoscaler   = var.enable_autoscaler
   deployment_annotations = {
     "ad.datadoghq.com/${var.data_plane_ext_deployment_name}.check_names"  = "[\"kong\"]"
     "ad.datadoghq.com/${var.data_plane_ext_deployment_name}.init_configs" = "[{}]"

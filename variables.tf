@@ -148,6 +148,8 @@ variable "dp_svcs" {
   description = "A map of objects that are used to create clusterIP services to expose Kong endpoints"
   type = map(object({
     annotations = map(string)
+    labels      = map(string)
+    type        = string
     ports = map(object({
       port        = number
       protocol    = string
@@ -157,6 +159,8 @@ variable "dp_svcs" {
   default = {
     "kong-proxy" = {
       annotations = {}
+      labels      = {}
+      type        = "ClusterIP"
       ports = {
         "kong-proxy" = {
           port        = 8000
@@ -177,6 +181,8 @@ variable "dp_ext_svcs" {
   description = "A map of objects that are used to create clusterIP services to expose Kong endpoints"
   type = map(object({
     annotations = map(string)
+    labels      = map(string)
+    type        = string
     ports = map(object({
       port        = number
       protocol    = string
@@ -186,6 +192,8 @@ variable "dp_ext_svcs" {
   default = {
     "kong-proxy-ext" = {
       annotations = {}
+      labels      = {}
+      type        = "ClusterIP"
       ports = {
         "kong-proxy" = {
           port        = 8000
@@ -202,58 +210,11 @@ variable "dp_ext_svcs" {
   }
 }
 
-variable "dp_lb_svcs" {
-  description = "A map of objects that are used to create LoadBalancer services to expose Kong endpoints to outside of the cluster"
-  type = map(object({
-    annotations                 = map(string)
-    load_balancer_source_ranges = list(string)
-    external_traffic_policy     = string
-    health_check_node_port      = number
-    ports = map(object({
-      port        = number
-      protocol    = string
-      target_port = number
-    }))
-  }))
-  default = {}
-}
-
-variable "dp_ext_lb_svcs" {
-  description = "A map of objects that are used to create LoadBalancer services to expose Kong endpoints to outside of the cluster"
-  type = map(object({
-    annotations                 = map(string)
-    load_balancer_source_ranges = list(string)
-    external_traffic_policy     = string
-    health_check_node_port      = number
-    ports = map(object({
-      port        = number
-      protocol    = string
-      target_port = number
-    }))
-  }))
-  default = {}
-}
-
-variable "cp_lb_svcs" {
-  description = "A map of objects that are used to create LoadBalancer services to expose Kong endpoints to outside of the cluster"
-  type = map(object({
-    load_balancer_source_ranges = list(string)
-    annotations                 = map(string)
-    external_traffic_policy     = string
-    health_check_node_port      = number
-    ports = map(object({
-      port        = number
-      protocol    = string
-      target_port = number
-    }))
-  }))
-  default = {}
-}
-
 variable "cp_ingress" {
   description = "A map that represents kubernetes ingress resources"
   type = map(object({
     annotations = map(string)
+    labels      = map(string)
     tls = object({
       hosts       = list(string)
       secret_name = string
@@ -273,6 +234,7 @@ variable "dp_ingress" {
   description = "A map that represents kubernetes ingress resources"
   type = map(object({
     annotations = map(string)
+    labels      = map(string)
     tls = object({
       hosts       = list(string)
       secret_name = string
@@ -292,6 +254,7 @@ variable "dp_ext_ingress" {
   description = "A map that represents kubernetes ingress resources"
   type = map(object({
     annotations = map(string)
+    labels      = map(string)
     tls = object({
       hosts       = list(string)
       secret_name = string
@@ -311,6 +274,8 @@ variable "cp_svcs" {
   description = "A map of objects that are used to create clusterIP services to expose Kong endpoints"
   type = map(object({
     annotations = map(string)
+    labels      = map(string)
+    type        = string
     ports = map(object({
       port        = number
       protocol    = string
@@ -320,6 +285,8 @@ variable "cp_svcs" {
   default = {
     "kong-cluster" = {
       annotations = {}
+      labels      = {}
+      type        = "ClusterIP"
       ports = {
         "kong-cluster" = {
           port        = 8005
@@ -335,6 +302,8 @@ variable "cp_svcs" {
     }
     "kong-api-man" = {
       annotations = {}
+      labels      = {}
+      type        = "ClusterIP"
       ports = {
         "kong-admin" = {
           port        = 8001
@@ -360,6 +329,8 @@ variable "cp_svcs" {
     }
     "kong-portal" = {
       annotations = {}
+      labels      = {}
+      type        = "ClusterIP"
       ports = {
         "kong-portal-admin" = {
           port        = 8004

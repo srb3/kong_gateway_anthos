@@ -2,6 +2,7 @@ resource "kubernetes_service" "postgres" {
   metadata {
     name      = "postgres"
     namespace = var.namespace
+    labels    = local.append_labels
   }
   spec {
     port {
@@ -17,17 +18,17 @@ resource "kubernetes_service" "postgres" {
 }
 
 locals {
-  pg_ip   = kubernetes_service.postgres.spec.0.cluster_ip
-  pg_port = kubernetes_service.postgres.spec.0.port.0.port
+  std_labels    = { "app" = "postgres" }
+  append_labels = merge(var.labels, local.std_labels)
+  pg_ip         = kubernetes_service.postgres.spec.0.cluster_ip
+  pg_port       = kubernetes_service.postgres.spec.0.port.0.port
 }
 
 resource "kubernetes_stateful_set" "postgres" {
   metadata {
     name      = "postgres"
     namespace = var.namespace
-    labels = {
-      app = "postgres"
-    }
+    labels    = local.append_labels
   }
   spec {
     replicas = 1
@@ -39,12 +40,29 @@ resource "kubernetes_stateful_set" "postgres" {
     service_name = "postgres"
     template {
       metadata {
-        labels = {
-          app = "postgres"
-        }
+        labels = local.append_labels
       }
       spec {
+        security_context {
+          fs_group            = var.pod_security_context.fs_group
+          run_as_group        = var.pod_security_context.run_as_group
+          run_as_non_root     = var.pod_security_context.run_as_non_root
+          run_as_user         = var.pod_security_context.run_as_user
+          supplemental_groups = var.pod_security_context.supplemental_groups
+        }
         container {
+          security_context {
+            allow_privilege_escalation = var.container_security_context.allow_privilege_escalation
+            capabilities {
+              add  = var.container_security_context.capabilities.add
+              drop = var.container_security_context.capabilities.drop
+            }
+            privileged                = var.container_security_context.privileged
+            read_only_root_filesystem = var.container_security_context.read_only_root_filesystem
+            run_as_group              = var.container_security_context.run_as_group
+            run_as_non_root           = var.container_security_context.run_as_non_root
+            run_as_user               = var.container_security_context.run_as_user
+          }
           env {
             name  = "POSTGRES_USER"
             value = var.kong_database_user
@@ -66,7 +84,7 @@ resource "kubernetes_stateful_set" "postgres" {
             name  = "PGDATA"
             value = "/var/lib/postgresql/data/pgdata"
           }
-          image = "postgres:9.5"
+          image = var.postgres_image
           name  = "postgres"
           port {
             container_port = 5432
@@ -96,24 +114,33 @@ resource "kubernetes_stateful_set" "postgres" {
   }
 }
 
-resource "kubernetes_job" "demo" {
+resource "kubernetes_job" "kong-migrations" {
   metadata {
     name      = "kong-migrations"
     namespace = var.namespace
+    labels    = local.append_labels
   }
   spec {
     template {
       metadata {
-        name = "kong-migrations"
+        name   = "kong-migrations"
+        labels = local.append_labels
       }
       spec {
         image_pull_secrets {
           name = "kong-enterprise-edition-docker"
         }
+        security_context {
+          fs_group            = var.pod_security_context.fs_group
+          run_as_group        = var.pod_security_context.run_as_group
+          run_as_non_root     = var.pod_security_context.run_as_non_root
+          run_as_user         = var.pod_security_context.run_as_user
+          supplemental_groups = var.pod_security_context.supplemental_groups
+        }
         restart_policy = "OnFailure"
         init_container {
           name  = "wait-for-postgres"
-          image = "busybox"
+          image = var.busybox_image
           command = [
             "/bin/sh",
             "-c",
@@ -129,6 +156,18 @@ resource "kubernetes_job" "demo" {
           }
         }
         container {
+          security_context {
+            allow_privilege_escalation = var.container_security_context.allow_privilege_escalation
+            capabilities {
+              add  = var.container_security_context.capabilities.add
+              drop = var.container_security_context.capabilities.drop
+            }
+            privileged                = var.container_security_context.privileged
+            read_only_root_filesystem = var.container_security_context.read_only_root_filesystem
+            run_as_group              = var.container_security_context.run_as_group
+            run_as_non_root           = var.container_security_context.run_as_non_root
+            run_as_user               = var.container_security_context.run_as_user
+          }
           image = var.kong_image
           name  = "kong-migrations"
           command = [
