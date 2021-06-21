@@ -540,7 +540,7 @@ locals {
 # needed to deploy a control plane
 module "kong-cp" {
   source              = "Kong/kong-gateway/kubernetes"
-  version             = "0.0.19"
+  version             = "0.0.20"
   deployment_name     = var.control_plane_deployment_name
   namespace           = local.cp_ns
   deployment_replicas = var.control_plane_replicas
@@ -566,7 +566,7 @@ module "kong-cp" {
 # needed to deploy a data plane
 module "kong-dp" {
   source              = "Kong/kong-gateway/kubernetes"
-  version             = "0.0.19"
+  version             = "0.0.20"
   deployment_name     = var.data_plane_deployment_name
   namespace           = local.dp_ns
   deployment_replicas = var.data_plane_replicas
@@ -592,7 +592,7 @@ module "kong-dp" {
 module "kong-dp-ext" {
   count               = local.extra_dp ? 1 : 0
   source              = "Kong/kong-gateway/kubernetes"
-  version             = "0.0.19"
+  version             = "0.0.20"
   deployment_name     = var.data_plane_ext_deployment_name
   namespace           = local.dp_ext_ns
   deployment_replicas = var.data_plane_ext_replicas

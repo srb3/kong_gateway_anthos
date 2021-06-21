@@ -39,7 +39,3 @@ output "kong-proxy-ext-endpoint" {
 output "kong-super-admin-token" {
   value = var.super_admin_password
 }
-
-output "dp-ingress" {
-  value = module.kong-dp.ingress
-}
